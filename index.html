@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PR Insight AI – AI-Powered Pull Request Reviews</title>
+<meta name="description" content="AI-Powered Pull Request Reviews for Faster and Safer Software Delivery.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0B1222;--bg2:#0D1628;--card:#16203A;--card2:#1a2840;
+  --b:rgba(255,255,255,0.08);--bac:rgba(6,182,212,0.3);
+  --cy:#06B6D4;--cyd:rgba(6,182,212,0.15);
+  --pu:#7C3AED;--pud:rgba(124,58,237,0.15);
+  --wh:#FFFFFF;--mu:rgba(255,255,255,0.55);--fa:rgba(255,255,255,0.28);
+  --ok:#22C55E;--okd:rgba(34,197,94,0.15);
+  --wa:#F59E0B;--wad:rgba(245,158,11,0.15);
+  --er:#EF4444;--erd:rgba(239,68,68,0.15);
+  --sh:0 8px 32px rgba(0,0,0,0.45);
+  --gl:0 0 30px rgba(6,182,212,0.18);
+  --r:12px;--rl:16px;--rx:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--wh);overflow-x:hidden;min-height:100vh;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:rgba(6,182,212,0.5);border-radius:3px;}
+.hidden{display:none!important;}
+
+/* ─── LOGIN ─── */
+#login{position:fixed;inset:0;display:flex;z-index:999;background:var(--bg);}
+.ll{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:56px 48px;position:relative;overflow:hidden;}
+.gb{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none;}
+.gb.c{width:420px;height:420px;background:var(--cy);opacity:.18;top:-100px;left:-80px;}
+.gb.p{width:300px;height:300px;background:var(--pu);opacity:.18;bottom:60px;right:40px;}
+.cw{background:var(--card);border:1px solid var(--b);border-radius:var(--rx);width:100%;max-width:520px;box-shadow:var(--sh),var(--gl);position:relative;z-index:1;animation:flt 6s ease-in-out infinite;}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-13px)}}
+.ai-tag{position:absolute;top:-13px;right:26px;background:linear-gradient(135deg,var(--cy),var(--pu));color:#fff;font-size:10px;font-weight:800;padding:4px 13px;border-radius:20px;letter-spacing:1.2px;animation:tp 2.2s ease-in-out infinite;}
+@keyframes tp{0%,100%{box-shadow:0 0 0 0 rgba(6,182,212,.5)}50%{box-shadow:0 0 0 10px transparent}}
+.wb{display:flex;align-items:center;gap:7px;padding:11px 15px;border-bottom:1px solid var(--b);}
+.dt{width:12px;height:12px;border-radius:50%;}
+.dt.r{background:#FF5F56;}.dt.y{background:#FFBD2E;}.dt.g{background:#27C93F;}
+.wt{font-size:11px;color:var(--fa);margin-left:8px;font-family:'JetBrains Mono',monospace;}
+.wbd{padding:18px 20px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.9;}
+.cl{display:flex;gap:13px;}
+.ln{color:var(--fa);min-width:20px;}
+.rm{color:#FF7B7B;background:rgba(239,68,68,.09);padding:1px 8px;border-radius:4px;}
+.ad{color:#6BCB7A;background:rgba(34,197,94,.09);padding:1px 8px;border-radius:4px;}
+.ne{color:var(--mu);}
+.kw{color:#BD93F9;}.st{color:#F1FA8C;}.cm{color:#6272A4;font-style:italic;}
+.fb{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;justify-content:center;}
+.ftag{background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--cy);}
+.lr{width:480px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:56px;background:rgba(22,32,58,.5);backdrop-filter:blur(20px);border-left:1px solid var(--b);}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:26px;}
+.logo-i{width:50px;height:50px;background:linear-gradient(135deg,var(--cy),var(--pu));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.logo-t{font-size:22px;font-weight:900;background:linear-gradient(135deg,var(--cy),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-s{font-size:11px;color:var(--fa);-webkit-text-fill-color:var(--fa);}
+.tl{text-align:center;margin-bottom:34px;}
+.tl h1{font-size:24px;font-weight:800;line-height:1.35;margin-bottom:10px;}
+.tl p{color:var(--mu);font-size:13px;line-height:1.65;}
+.ghb{display:flex;align-items:center;gap:12px;background:var(--wh);color:#0B1222;border:none;border-radius:var(--r);padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;width:100%;justify-content:center;transition:all .2s;font-family:'Inter',sans-serif;margin-bottom:18px;}
+.ghb:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.4);}
+.dvl{display:flex;align-items:center;gap:14px;width:100%;margin:14px 0;}
+.dvl::before,.dvl::after{content:'';flex:1;height:1px;background:var(--b);}
+.dvl span{color:var(--fa);font-size:12px;}
+.dmb{display:flex;align-items:center;gap:8px;background:transparent;color:var(--cy);border:1px solid var(--cy);border-radius:var(--r);padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;width:100%;justify-content:center;transition:all .2s;font-family:'Inter',sans-serif;}
+.dmb:hover{background:var(--cyd);transform:translateY(-2px);}
+.lfs{display:flex;flex-direction:column;gap:11px;margin-top:34px;width:100%;}
+.lf{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--mu);}
+.lfi{width:28px;height:28px;border-radius:8px;background:var(--cyd);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+
+/* ─── APP ─── */
+#app{display:none;height:100vh;overflow:hidden;}
+.aw{display:flex;height:100vh;}
+
+/* ─── SIDEBAR ─── */
+.sb{width:254px;height:100vh;background:var(--card);border-right:1px solid var(--b);display:flex;flex-direction:column;flex-shrink:0;z-index:100;}
+.sbh{padding:18px 18px 14px;border-bottom:1px solid var(--b);}
+.sbl{display:flex;align-items:center;gap:10px;}
+.sbi{width:36px;height:36px;background:linear-gradient(135deg,var(--cy),var(--pu));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.sblt{font-size:14.5px;font-weight:900;background:linear-gradient(135deg,var(--cy),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2;}
+.sbls{font-size:10px;color:var(--fa);-webkit-text-fill-color:var(--fa);}
+.ssl{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.3px;color:var(--fa);padding:14px 18px 6px;}
+.sbn{flex:1;overflow-y:auto;padding:5px 0;}
+.ni{display:flex;align-items:center;gap:11px;padding:9.5px 18px;cursor:pointer;transition:all .18s;color:var(--mu);font-size:13.5px;font-weight:500;position:relative;user-select:none;}
+.ni:hover{background:rgba(255,255,255,.04);color:var(--wh);}
+.ni.on{background:var(--cyd);color:var(--cy);}
+.ni.on::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cy);border-radius:0 3px 3px 0;}
+.nic{width:18px;text-align:center;flex-shrink:0;}
+.nbg{margin-left:auto;background:var(--er);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center;}
+.nbg.cy{background:var(--cyd);color:var(--cy);}
+.sbf{padding:14px 18px;border-top:1px solid var(--b);}
+.ur{display:flex;align-items:center;gap:9px;padding:7px;border-radius:var(--r);cursor:pointer;transition:background .2s;}
+.ur:hover{background:rgba(255,255,255,.04);}
+.av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--cy),var(--pu));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+.un{font-size:12.5px;font-weight:600;}
+.uro{font-size:10.5px;color:var(--fa);}
+.uod{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0;}
+
+/* ─── MAIN ─── */
+.mn{flex:1;overflow-y:auto;background:var(--bg);display:flex;flex-direction:column;}
+
+/* ─── TOPBAR ─── */
+.tb{display:flex;align-items:center;justify-content:space-between;padding:11px 28px;background:rgba(22,32,58,.65);border-bottom:1px solid var(--b);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50;flex-shrink:0;}
+.tbl,.tbr{display:flex;align-items:center;gap:10px;}
+.tbsrc{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:7px 13px;min-width:210px;}
+.tbsrc input{background:none;border:none;outline:none;color:var(--wh);font-size:12.5px;font-family:'Inter',sans-serif;width:100%;}
+.tbsrc input::placeholder{color:var(--fa);}
+.ib{width:34px;height:34px;background:var(--card);border:1px solid var(--b);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--mu);position:relative;font-size:14px;}
+.ib:hover{border-color:var(--cy);color:var(--cy);}
+.ndot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--er);border-radius:50%;border:2px solid var(--bg);}
+.apill{display:flex;align-items:center;gap:7px;background:var(--okd);border:1px solid rgba(34,197,94,.3);border-radius:20px;padding:5px 13px;font-size:11.5px;font-weight:600;color:var(--ok);}
+.blk{width:6px;height:6px;background:var(--ok);border-radius:50%;animation:blink 1.4s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ─── PAGES ─── */
+.page{display:none;flex:1;}
+.page.on{display:block;animation:fin .28s ease;}
+@keyframes fin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ph{padding:22px 28px 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.pht{font-size:20px;font-weight:800;}
+.phs{font-size:12px;color:var(--mu);margin-top:2px;}
+.pc{padding:0 28px 32px;}
+
+/* ─── CARD ─── */
+.card{background:var(--card);border:1px solid var(--b);border-radius:var(--rl);padding:18px;transition:border-color .2s,box-shadow .2s;}
+.card:hover{border-color:var(--bac);box-shadow:var(--gl);}
+
+/* ─── METRIC CARDS ─── */
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.mc{background:var(--card);border:1px solid var(--b);border-radius:var(--rl);padding:18px;position:relative;overflow:hidden;transition:all .25s;}
+.mc::before{content:'';position:absolute;top:-20px;right:-20px;width:90px;height:90px;border-radius:50%;filter:blur(28px);opacity:.12;}
+.mc.cy::before{background:var(--cy);}
+.mc.pu::before{background:var(--pu);}
+.mc.ok::before{background:var(--ok);}
+.mc.wa::before{background:var(--wa);}
+.mc:hover{transform:translateY(-2px);box-shadow:var(--gl);}
+.mch{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.mci{width:38px;height:38px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.mci.cy{background:var(--cyd);}
+.mci.pu{background:var(--pud);}
+.mci.ok{background:var(--okd);}
+.mci.wa{background:var(--wad);}
+.tr{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;}
+.tr.up{background:var(--okd);color:var(--ok);}
+.tr.dn{background:var(--erd);color:var(--er);}
+.mv{font-size:30px;font-weight:900;line-height:1;margin-bottom:3px;}
+.ml{font-size:11.5px;color:var(--mu);margin-bottom:10px;}
+.mbar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+.mf{height:100%;border-radius:2px;transition:width 1.6s ease;}
+.mf.cy{background:var(--cy);}
+.mf.pu{background:var(--pu);}
+.mf.ok{background:var(--ok);}
+.mf.wa{background:var(--wa);}
+
+/* ─── GRID ─── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.mb4{margin-bottom:16px;}.mb6{margin-bottom:20px;}.mt4{margin-top:16px;}
+.flx{display:flex;}.fac{align-items:center;}.fjb{justify-content:space-between;}.fcol{flex-direction:column;}.f1{flex:1;}
+.g2p{gap:8px;}.g3p{gap:12px;}.g4p{gap:16px;}
+
+/* ─── CHART ─── */
+.ch{position:relative;height:210px;}
+.ch.tl{height:270px;}
+.ch.sh{height:150px;}
+
+/* ─── SECTION HEADER ─── */
+.sech{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sect{font-size:14px;font-weight:700;}
+.secs{font-size:11px;color:var(--fa);margin-top:2px;}
+
+/* ─── BADGE ─── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:600;}
+.badge.ok{background:var(--okd);color:var(--ok);}
+.badge.wa{background:var(--wad);color:var(--wa);}
+.badge.er{background:var(--erd);color:var(--er);}
+.badge.cy{background:var(--cyd);color:var(--cy);}
+.badge.pu{background:var(--pud);color:var(--pu);}
+.badge.mu{background:rgba(255,255,255,.06);color:var(--mu);}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:none;font-family:'Inter',sans-serif;}
+.btn-p{background:linear-gradient(135deg,var(--cy),#0891B2);color:#fff;}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(6,182,212,.4);}
+.btn-s{background:var(--card);color:var(--wh);border:1px solid var(--b);}
+.btn-s:hover{border-color:var(--cy);color:var(--cy);}
+.btn-d{background:var(--erd);color:var(--er);border:1px solid rgba(239,68,68,.3);}
+.btn.sm{padding:5px 11px;font-size:12px;}
+.btn.lg{padding:11px 22px;font-size:14px;}
+
+/* ─── ACTIVITY FEED ─── */
+.af{display:flex;flex-direction:column;}
+.afit{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--b);}
+.afit:last-child{border-bottom:none;}
+.adot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.adot.ok{background:var(--ok);box-shadow:0 0 5px var(--ok);}
+.adot.wa{background:var(--wa);box-shadow:0 0 5px var(--wa);}
+.adot.er{background:var(--er);box-shadow:0 0 5px var(--er);}
+.adot.cy{background:var(--cy);box-shadow:0 0 5px var(--cy);}
+.act{flex:1;}
+.att{font-size:12.5px;font-weight:500;}
+.atm{font-size:11px;color:var(--fa);margin-top:2px;}
+
+/* ─── REPO GRID ─── */
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.rc{background:var(--card);border:1px solid var(--b);border-radius:var(--rl);padding:18px;cursor:pointer;transition:all .2s;}
+.rc:hover{border-color:var(--cy);transform:translateY(-3px);box-shadow:var(--gl);}
+.rch{display:flex;align-items:center;gap:9px;margin-bottom:11px;}
+.rci{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.rnm{font-size:14px;font-weight:700;}
+.rds{font-size:11.5px;color:var(--mu);margin-top:1px;}
+.rst{display:flex;gap:14px;margin:10px 0;}
+.rss{font-size:11.5px;color:var(--mu);}
+.rss strong{color:var(--wh);font-weight:700;margin-right:3px;}
+.lb{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;}
+.ld{width:7px;height:7px;border-radius:50%;}
+.abr{display:flex;gap:2px;align-items:flex-end;height:36px;margin-top:10px;}
+.ab{flex:1;border-radius:2px 2px 0 0;}
+
+/* ─── PR TABLE ─── */
+.tbc{background:var(--card);border:1px solid var(--b);border-radius:var(--rl);overflow:hidden;}
+.prt{width:100%;border-collapse:collapse;}
+.prt th{text-align:left;padding:10px 14px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--fa);border-bottom:1px solid var(--b);white-space:nowrap;}
+.prt td{padding:11px 14px;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;}
+.prt tr:hover td{background:rgba(255,255,255,.02);}
+.prt tr{cursor:pointer;transition:background .2s;}
+.pnum{color:var(--cy);font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ptw{max-width:210px;}
+.ptm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pts{font-size:11px;color:var(--fa);margin-top:2px;}
+.sbr{display:flex;align-items:center;gap:7px;}
+.str{width:56px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;}
+.sfill{height:100%;border-radius:2px;}
+.avs{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--cy),var(--pu));display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;border:2px solid var(--card);}
+.sp{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.sp.merged{background:var(--pud);color:var(--pu);}
+.sp.open{background:var(--okd);color:var(--ok);}
+.sp.review{background:var(--wad);color:var(--wa);}
+.sp.closed{background:rgba(255,255,255,.06);color:var(--mu);}
+.sp.draft{background:rgba(255,255,255,.04);color:var(--fa);}
+.pag{display:flex;align-items:center;gap:5px;margin-top:16px;justify-content:center;}
+.pb{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--b);background:var(--card);color:var(--mu);font-size:12px;cursor:pointer;transition:all .2s;}
+.pb.on{background:var(--cy);border-color:var(--cy);color:#fff;}
+.pb:hover:not(.on){border-color:var(--cy);color:var(--cy);}
+
+/* ─── FILTERS ─── */
+.frow{display:flex;gap:9px;margin-bottom:18px;flex-wrap:wrap;}
+.si{flex:1;min-width:180px;display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:7px 13px;}
+.si input{background:none;border:none;outline:none;color:var(--wh);font-size:12.5px;font-family:'Inter',sans-serif;width:100%;}
+.si input::placeholder{color:var(--fa);}
+.fb{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:7px 13px;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer;transition:all .2s;}
+.fb:hover,.fb.on{border-color:var(--cy);color:var(--cy);}
+
+/* ─── AI REVIEW ─── */
+.pline{display:flex;align-items:center;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;}
+.ps{display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;flex:1;min-width:88px;}
+.ps:not(:last-child)::after{content:'';position:absolute;top:18px;left:50%;width:100%;height:2px;background:var(--b);z-index:0;}
+.ps.done:not(:last-child)::after{background:var(--cy);}
+.ps.run:not(:last-child)::after{background:linear-gradient(90deg,var(--cy),var(--b));}
+.pc2{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;border:2px solid var(--b);background:var(--card);position:relative;z-index:1;transition:all .3s;}
+.pc2.done{border-color:var(--cy);background:var(--cyd);}
+.pc2.run{border-color:var(--cy);animation:gring 1.8s ease-in-out infinite;}
+@keyframes gring{0%,100%{box-shadow:0 0 0 0 rgba(6,182,212,.5)}50%{box-shadow:0 0 0 8px transparent}}
+.pll{font-size:10.5px;font-weight:600;color:var(--fa);text-align:center;}
+.pll.act{color:var(--cy);}
+.pll.done{color:var(--mu);}
+.pdur{font-size:9.5px;color:var(--fa);font-family:'JetBrains Mono',monospace;}
+
+/* ─── LOG ─── */
+.log{background:#060B15;border:1px solid var(--b);border-radius:var(--r);padding:14px;height:170px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.85;}
+.ll{display:flex;gap:11px;}
+.ltm{color:var(--fa);flex-shrink:0;}
+.li{color:var(--cy);}
+.ls{color:var(--ok);}
+.lw{color:var(--wa);}
+.le{color:var(--er);}
+.lm{color:var(--mu);}
+
+/* ─── TABS ─── */
+.tabr{display:flex;gap:3px;background:var(--bg2);border-radius:var(--r);padding:3px;margin-bottom:18px;}
+.tbt{flex:1;padding:7px 10px;border:none;background:transparent;color:var(--mu);font-size:12px;font-weight:600;cursor:pointer;border-radius:8px;transition:all .2s;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;}
+.tbt.on{background:var(--card);color:var(--cy);box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.tbt:hover:not(.on){color:var(--wh);}
+
+/* ─── ISSUE CARDS ─── */
+.ic{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:14px;margin-bottom:10px;transition:border-color .2s;}
+.ic:hover{border-color:var(--bac);}
+.ih{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.isev{padding:2px 9px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;flex-shrink:0;}
+.isev.critical{background:rgba(239,68,68,.2);color:var(--er);border:1px solid rgba(239,68,68,.4);}
+.isev.high{background:rgba(245,158,11,.2);color:var(--wa);border:1px solid rgba(245,158,11,.4);}
+.isev.medium{background:rgba(6,182,212,.15);color:var(--cy);border:1px solid rgba(6,182,212,.3);}
+.isev.low{background:rgba(34,197,94,.15);color:var(--ok);border:1px solid rgba(34,197,94,.3);}
+.iti{font-size:12.5px;font-weight:700;}
+.ids{font-size:11.5px;color:var(--mu);line-height:1.6;}
+.ifx{margin-top:9px;background:var(--card);border-radius:7px;padding:9px 11px;font-size:11.5px;color:var(--mu);border-left:3px solid var(--ok);}
+.ifx strong{color:var(--ok);}
+.csnip{background:#060B15;border-radius:6px;padding:9px 11px;margin-top:7px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;overflow-x:auto;color:var(--mu);}
+
+/* ─── CODE DIFF ─── */
+.dfw{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--b);border-radius:var(--r);overflow:hidden;}
+.dp{background:#060B15;}
+.dph{padding:9px 14px;font-size:11.5px;font-weight:700;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--b);}
+.dph.old{color:var(--er);}
+.dph.nw{color:var(--ok);}
+.dls{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.85;padding:6px 0;}
+.dl{display:flex;gap:10px;padding:1px 14px;}
+.dl.rem{background:rgba(239,68,68,.09);}
+.dl.add{background:rgba(34,197,94,.09);}
+.dln{color:var(--fa);min-width:22px;user-select:none;}
+.dpx{min-width:12px;font-weight:700;}
+.dpx.r{color:var(--er);}
+.dpx.a{color:var(--ok);}
+.dc{color:var(--mu);}
+.dc .k{color:#BD93F9;}
+.dc .s{color:#F1FA8C;}
+.dc .f{color:#8BE9FD;}
+.dc .cm{color:#6272A4;font-style:italic;}
+.dc .n{color:#FF79C6;}
+.acmt{background:rgba(124,58,237,.12);border-left:3px solid var(--pu);padding:7px 14px;font-size:11px;color:var(--mu);display:flex;gap:8px;}
+.acmt strong{color:var(--pu);}
+
+/* ─── RADAR ─── */
+.rl{display:flex;flex-direction:column;gap:9px;margin-top:12px;}
+.rli{display:flex;align-items:center;gap:9px;font-size:11.5px;}
+.rld{width:9px;height:9px;border-radius:50%;}
+.rsv{font-size:44px;font-weight:900;background:linear-gradient(135deg,var(--cy),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;}
+.rsl{font-size:11.5px;color:var(--fa);text-align:center;}
+
+/* ─── ANALYTICS ─── */
+.ag{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+
+/* ─── TEAM TABLE ─── */
+.tt{width:100%;border-collapse:collapse;}
+.tt th{text-align:left;padding:8px 11px;font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--fa);border-bottom:1px solid var(--b);}
+.tt td{padding:9px 11px;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.03);}
+.tt tr:hover td{background:rgba(255,255,255,.02);}
+.spark{display:flex;gap:2px;align-items:flex-end;height:22px;}
+.spk{width:4px;border-radius:2px 2px 0 0;background:var(--cy);opacity:.7;}
+
+/* ─── NOTIFICATIONS ─── */
+.nlist{display:flex;flex-direction:column;}
+.nit{display:flex;gap:13px;padding:15px 18px;border-bottom:1px solid var(--b);transition:background .2s;cursor:pointer;position:relative;}
+.nit:hover{background:rgba(255,255,255,.02);}
+.nit.unread::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.nit.unread.security::before{background:var(--er);}
+.nit.unread.success::before{background:var(--ok);}
+.nit.unread.info::before{background:var(--cy);}
+.nit.unread.warning::before{background:var(--wa);}
+.nico{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.nico.security{background:var(--erd);}
+.nico.success{background:var(--okd);}
+.nico.info{background:var(--cyd);}
+.nico.warning{background:var(--wad);}
+.ncont{flex:1;}
+.ntit{font-size:13.5px;font-weight:600;margin-bottom:3px;}
+.ndes{font-size:12px;color:var(--mu);line-height:1.5;}
+.ntm{font-size:11px;color:var(--fa);margin-top:5px;}
+.nudot{width:7px;height:7px;border-radius:50%;background:var(--cy);flex-shrink:0;margin-top:5px;}
+
+/* ─── ADMIN ─── */
+.adg{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.tgli{display:flex;flex-direction:column;}
+.tglr{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b);}
+.tglr:last-child{border-bottom:none;}
+.tgln{font-size:12.5px;font-weight:600;}
+.tgld{font-size:11px;color:var(--fa);margin-top:1px;}
+.tgl{width:42px;height:22px;background:rgba(255,255,255,.1);border-radius:11px;position:relative;cursor:pointer;transition:background .28s;flex-shrink:0;}
+.tgl.on{background:var(--cy);}
+.tgl::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .28s;}
+.tgl.on::after{transform:translateX(20px);}
+.thi{margin-bottom:14px;}
+.thh{display:flex;justify-content:space-between;margin-bottom:7px;font-size:12px;}
+.thv{color:var(--cy);font-weight:700;}
+.ths{width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;appearance:none;outline:none;cursor:pointer;}
+.ths::-webkit-slider-thumb{appearance:none;width:15px;height:15px;background:var(--cy);border-radius:50%;cursor:pointer;box-shadow:0 0 7px rgba(6,182,212,.4);}
+.inti{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--b);}
+.inti:last-child{border-bottom:none;}
+.intic{width:38px;height:38px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.intn{font-size:12.5px;font-weight:700;}
+.ints{font-size:11px;color:var(--fa);margin-top:1px;}
+
+/* ─── TOAST ─── */
+#tw{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:9px;pointer-events:none;}
+.toast{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:13px 16px;display:flex;gap:11px;align-items:flex-start;box-shadow:var(--sh);pointer-events:all;animation:tin .28s ease;max-width:300px;}
+@keyframes tin{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+.toast.ok{border-left:3px solid var(--ok);}
+.toast.er{border-left:3px solid var(--er);}
+.toast.wa{border-left:3px solid var(--wa);}
+.toast.cy{border-left:3px solid var(--cy);}
+.tst{font-size:12.5px;font-weight:700;}
+.tsm{font-size:11.5px;color:var(--mu);margin-top:2px;}
+
+/* ─── MISC ─── */
+.prs{background:var(--card);border:1px solid var(--b);border-radius:var(--r);padding:9px 13px;color:var(--wh);font-size:13px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;width:100%;}
+.prs option{background:var(--card);}
+.lvi{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ok);font-weight:700;}
+.lvd{width:6px;height:6px;background:var(--ok);border-radius:50%;animation:blink 1.2s ease-in-out infinite;}
+.scc{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:2px solid;}
+.scc.hi{border-color:var(--ok);color:var(--ok);}
+.scc.md{border-color:var(--wa);color:var(--wa);}
+.scc.lo{border-color:var(--er);color:var(--er);}
+.gt{background:linear-gradient(135deg,var(--cy),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.bn{font-size:26px;font-weight:900;line-height:1;}
+code.br{font-size:10.5px;color:var(--mu);font-family:'JetBrains Mono',monospace;}
+
+@media(max-width:1200px){.mg{grid-template-columns:1fr 1fr;}.rg{grid-template-columns:1fr 1fr;}.adg{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="login">
+  <div class="ll">
+    <div class="gb c"></div><div class="gb p"></div>
+    <div class="cw">
+      <div class="ai-tag">✦ AI REVIEWING</div>
+      <div class="wb">
+        <div class="dt r"></div><div class="dt y"></div><div class="dt g"></div>
+        <span class="wt">auth/login.ts — PR #247 · auth-service</span>
+      </div>
+      <div class="wbd">
+        <div class="cl"><span class="ln">1</span><span class="ne"><span class="kw">import</span> { db, sanitize } <span class="kw">from</span> <span class="st">'../utils'</span>;</span></div>
+        <div class="cl"><span class="ln">2</span><span class="ne"></span></div>
+        <div class="cl"><span class="ln">3</span><span class="rm">- const password = req.body.password;</span></div>
+        <div class="cl"><span class="ln">4</span><span class="ad">+ const password = sanitize(req.body.password);</span></div>
+        <div class="cl"><span class="ln">5</span><span class="ne"></span></div>
+        <div class="cl"><span class="ln">6</span><span class="rm">- db.query(`SELECT * FROM users WHERE id=${id}`);</span></div>
+        <div class="cl"><span class="ln">7</span><span class="ad">+ db.query('SELECT * FROM users WHERE id=?', [id]);</span></div>
+        <div class="cl"><span class="ln">8</span><span class="ne"></span></div>
+        <div class="cl"><span class="ln">9</span><span class="cm">// ✦ AI: SQL injection fixed (CVSS 9.8 → resolved)</span></div>
+        <div class="cl"><span class="ln">10</span><span class="cm">// ✦ AI: MD5 → bcrypt(12) · Input sanitized · Score: 63→92</span></div>
+      </div>
+    </div>
+    <div class="fb">
+      <div class="ftag">🔒 SQL Injection Detection</div>
+      <div class="ftag">⚡ Performance Analysis</div>
+      <div class="ftag">🤖 AI Auto-Fix</div>
+      <div class="ftag">📊 Quality Scoring</div>
+      <div class="ftag">🔀 Auto-Merge Pipeline</div>
+    </div>
+  </div>
+  <div class="lr">
+    <div class="logo">
+      <div class="logo-i">🔮</div>
+      <div><div class="logo-t">PR Insight AI</div><div class="logo-s">Powered by Claude AI</div></div>
+    </div>
+    <div class="tl">
+      <h1>AI-Powered Pull Request Reviews for Faster and Safer Software Delivery</h1>
+      <p>Automatically detect vulnerabilities, quality issues, and generate intelligent fixes — before they reach production.</p>
+    </div>
+    <button class="ghb" onclick="login()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+      Continue with GitHub
+    </button>
+    <div class="dvl"><span>or try without account</span></div>
+    <button class="dmb" onclick="login()">⚡ Launch Demo Mode</button>
+    <div class="lfs">
+      <div class="lf"><div class="lfi">🔒</div>Security vulnerability scanning with CVSS scoring</div>
+      <div class="lf"><div class="lfi">🤖</div>Claude AI generates contextual code fixes instantly</div>
+      <div class="lf"><div class="lfi">📈</div>Track team productivity and code quality trends</div>
+      <div class="lf"><div class="lfi">⚡</div>Real-time PR analysis with auto-merge pipeline</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+ <div class="aw">
+
+  <!-- SIDEBAR -->
+  <nav class="sb">
+    <div class="sbh">
+      <div class="sbl">
+        <div class="sbi">🔮</div>
+        <div><div class="sblt">PR Insight AI</div><div class="sbls">Powered by Claude</div></div>
+      </div>
+    </div>
+    <div class="sbn">
+      <div class="ssl">Main</div>
+      <div class="ni on" id="ni-dashboard" onclick="nav('dashboard')"><span class="nic">📊</span>Dashboard</div>
+      <div class="ni" id="ni-repos" onclick="nav('repos')"><span class="nic">🗂</span>Repositories<span class="nbg cy">8</span></div>
+      <div class="ni" id="ni-prs" onclick="nav('prs')"><span class="nic">🔀</span>Pull Requests<span class="nbg">12</span></div>
+      <div class="ni" id="ni-review" onclick="nav('review')"><span class="nic">🤖</span>AI Review</div>
+      <div class="ssl">Insights</div>
+      <div class="ni" id="ni-analytics" onclick="nav('analytics')"><span class="nic">📈</span>Analytics</div>
+      <div class="ni" id="ni-notifications" onclick="nav('notifications')"><span class="nic">🔔</span>Notifications<span class="nbg" id="nb-notif">5</span></div>
+      <div class="ssl">Config</div>
+      <div class="ni" id="ni-admin" onclick="nav('admin')"><span class="nic">⚙️</span>Admin Panel</div>
+    </div>
+    <div class="sbf">
+      <div class="ur">
+        <div class="av">DV</div>
+        <div><div class="un">Dev Varsha</div><div class="uro">Admin · Pro Plan</div></div>
+        <div class="uod"></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="mn">
+    <div class="tb">
+      <div class="tbl">
+        <div class="tbsrc"><span style="color:var(--fa)">🔍</span><input type="text" placeholder="Search PRs, repos, issues..."></div>
+        <div class="apill"><div class="blk"></div>Agent Active</div>
+      </div>
+      <div class="tbr">
+        <div class="ib" onclick="nav('notifications')" title="Notifications">🔔<span class="ndot"></span></div>
+        <div class="ib" title="Help">❓</div>
+        <div class="av" style="cursor:pointer">DV</div>
+      </div>
+    </div>
+
+    <!-- ▓▓ DASHBOARD ▓▓ -->
+    <div class="page on" id="page-dashboard">
+      <div class="ph">
+        <div><div class="pht">Dashboard</div><div class="phs">Real-time overview of your code quality pipeline</div></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="lvi"><div class="lvd"></div>Live Feed</div>
+          <button class="btn btn-p sm" onclick="nav('review')">▶ Run AI Review</button>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="mg">
+          <div class="mc cy"><div class="mch"><div class="mci cy">🗂</div><div class="tr up">↑ 12%</div></div><div class="mv" id="m-repos">0</div><div class="ml">Total Repositories</div><div class="mbar"><div class="mf cy" id="bar-repos" style="width:0%"></div></div></div>
+          <div class="mc pu"><div class="mch"><div class="mci pu">🔀</div><div class="tr up">↑ 28%</div></div><div class="mv" id="m-prs">0</div><div class="ml">PRs Reviewed</div><div class="mbar"><div class="mf pu" id="bar-prs" style="width:0%"></div></div></div>
+          <div class="mc wa"><div class="mch"><div class="mci wa">🛡</div><div class="tr dn">↓ 8%</div></div><div class="mv" id="m-sec">0</div><div class="ml">Security Issues Found</div><div class="mbar"><div class="mf wa" id="bar-sec" style="width:0%"></div></div></div>
+          <div class="mc ok"><div class="mch"><div class="mci ok">⭐</div><div class="tr up">↑ 5%</div></div><div class="mv" id="m-score">0</div><div class="ml">Code Quality Score</div><div class="mbar"><div class="mf ok" id="bar-score" style="width:0%"></div></div></div>
+        </div>
+        <div class="g2 mb6">
+          <div class="card"><div class="sech"><div><div class="sect">Reviews Per Day</div><div class="secs">Last 14 days</div></div><div class="badge cy">↑ 28%</div></div><div class="ch"><canvas id="ch-d1"></canvas></div></div>
+          <div class="card"><div class="sech"><div><div class="sect">Issue Distribution</div><div class="secs">By category</div></div></div><div class="ch" style="height:190px"><canvas id="ch-d2"></canvas></div></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="sech"><div class="sect">Live Activity Log</div><div class="lvi"><div class="lvd"></div>Live</div></div><div class="af" id="act-feed"></div></div>
+          <div class="card"><div class="sech"><div class="sect">Recent Pull Requests</div><button class="btn btn-s sm" onclick="nav('prs')">View All →</button></div><div id="rec-prs"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ▓▓ REPOSITORIES ▓▓ -->
+    <div class="page" id="page-repos">
+      <div class="ph">
+        <div><div class="pht">Repositories</div><div class="phs">8 repositories · Active monitoring</div></div>
+        <button class="btn btn-p">+ Connect Repo</button>
+      </div>
+      <div class="pc">
+        <div class="frow">
+          <div class="si"><span style="color:var(--fa)">🔍</span><input type="text" placeholder="Search repositories..." id="repo-s" oninput="filterRepos()"></div>
+          <div class="fb on" onclick="fLang(this,'all')">All Languages</div>
+          <div class="fb" onclick="fLang(this,'TypeScript')">TypeScript</div>
+          <div class="fb" onclick="fLang(this,'Python')">Python</div>
+          <div class="fb" onclick="fLang(this,'Go')">Go</div>
+          <div class="fb" onclick="fLang(this,'Rust')">Rust</div>
+        </div>
+        <div class="rg" id="repo-grid"></div>
+      </div>
+    </div>
+
+    <!-- ▓▓ PULL REQUESTS ▓▓ -->
+    <div class="page" id="page-prs">
+      <div class="ph">
+        <div><div class="pht">Pull Requests</div><div class="phs">25 total · 12 open · 3 awaiting review</div></div>
+        <button class="btn btn-p" onclick="nav('review')">🤖 AI Review Selected</button>
+      </div>
+      <div class="pc">
+        <div class="frow">
+          <div class="si"><span style="color:var(--fa)">🔍</span><input type="text" placeholder="Search PRs..." id="pr-s" oninput="filterPRs()"></div>
+          <div class="fb on" onclick="fPRS(this,'all')">All</div>
+          <div class="fb" onclick="fPRS(this,'open')">🟢 Open</div>
+          <div class="fb" onclick="fPRS(this,'review')">🟡 Review</div>
+          <div class="fb" onclick="fPRS(this,'merged')">🟣 Merged</div>
+          <div class="fb" onclick="fPRS(this,'closed')">⚫ Closed</div>
+        </div>
+        <div class="tbc">
+          <table class="prt">
+            <thead><tr><th>#</th><th>Pull Request</th><th>Author</th><th>Branch</th><th>Files</th><th>Status</th><th>AI Score</th><th>Action</th></tr></thead>
+            <tbody id="pr-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pag" id="pr-pag"></div>
+      </div>
+    </div>
+
+    <!-- ▓▓ AI REVIEW ▓▓ -->
+    <div class="page" id="page-review">
+      <div class="ph">
+        <div><div class="pht">AI Review Engine</div><div class="phs">Claude-powered code analysis &amp; fix generation</div></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <select class="prs" id="pr-sel" onchange="selectPR(this.value)" style="max-width:270px"></select>
+          <button class="btn btn-p" id="start-btn" onclick="startAgent()">▶ Start Agent</button>
+          <button class="btn btn-d sm hidden" id="stop-btn" onclick="stopAgent()">⏹ Stop</button>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="card mb6">
+          <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+            <div style="flex:1;min-width:180px">
+              <div class="sect" id="rev-title">Select a PR to begin AI review</div>
+              <div style="font-size:11.5px;color:var(--fa);margin-top:3px" id="rev-meta">Choose a pull request from the dropdown above</div>
+            </div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+              <div style="text-align:center"><div class="bn gt" id="s-files">—</div><div style="font-size:11px;color:var(--fa)">Files</div></div>
+              <div style="text-align:center"><div class="bn" style="color:var(--ok)" id="s-add">—</div><div style="font-size:11px;color:var(--fa)">Added</div></div>
+              <div style="text-align:center"><div class="bn" style="color:var(--er)" id="s-rem">—</div><div style="font-size:11px;color:var(--fa)">Removed</div></div>
+              <div style="text-align:center"><div class="bn" style="color:var(--wa)" id="s-score">—</div><div style="font-size:11px;color:var(--fa)">Score</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card mb6">
+          <div class="sech">
+            <div class="sect">Agent Pipeline</div>
+            <div id="ag-lbl" style="display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:var(--fa)"></div><span style="font-size:11px;font-weight:700;color:var(--fa)">Idle</span></div>
+          </div>
+          <div class="pline">
+            <div class="ps" id="ps0"><div class="pc2" id="pc0">📥</div><div class="pll" id="pl0">Pull PR</div><div class="pdur" id="pd0"></div></div>
+            <div class="ps" id="ps1"><div class="pc2" id="pc1">🔍</div><div class="pll" id="pl1">Analyze Bug</div><div class="pdur" id="pd1"></div></div>
+            <div class="ps" id="ps2"><div class="pc2" id="pc2">✏️</div><div class="pll" id="pl2">Generate Fix</div><div class="pdur" id="pd2"></div></div>
+            <div class="ps" id="ps3"><div class="pc2" id="pc3">📤</div><div class="pll" id="pl3">Push Fix</div><div class="pdur" id="pd3"></div></div>
+            <div class="ps" id="ps4"><div class="pc2" id="pc4">✅</div><div class="pll" id="pl4">Auto-Merge</div><div class="pdur" id="pd4"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;margin-top:16px">
+            <div class="sect" style="font-size:12.5px">Live Log</div>
+            <button class="btn btn-s sm" onclick="clearLog()">Clear</button>
+          </div>
+          <div class="log" id="log"><div class="ll"><span class="ltm">—</span><span class="li">INFO</span><span class="lm">Agent ready. Select a PR and press Start to begin analysis.</span></div></div>
+        </div>
+        <div id="rev-results" class="hidden">
+          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px">
+            <div>
+              <div class="tabr">
+                <button class="tbt on" onclick="showTab('sec')" id="tab-sec">🛡 Security <span id="sec-n" style="background:var(--erd);color:var(--er);font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;margin-left:3px">3</span></button>
+                <button class="tbt" onclick="showTab('qual')" id="tab-qual">📋 Quality <span style="background:var(--wad);color:var(--wa);font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;margin-left:3px">5</span></button>
+                <button class="tbt" onclick="showTab('perf')" id="tab-perf">⚡ Perf <span style="background:var(--cyd);color:var(--cy);font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;margin-left:3px">2</span></button>
+                <button class="tbt" onclick="showTab('docs')" id="tab-docs">📝 Docs</button>
+              </div>
+              <div id="tc-sec"><div id="sec-issues"></div></div>
+              <div id="tc-qual" class="hidden"><div id="qual-issues"></div></div>
+              <div id="tc-perf" class="hidden"><div id="perf-issues"></div></div>
+              <div id="tc-docs" class="hidden"><div id="docs-issues"></div></div>
+              <div class="card mt4">
+                <div class="sech"><div class="sect">Code Diff Viewer</div><div class="badge mu">auth/login.ts</div></div>
+                <div class="dfw" id="diff-view"></div>
+              </div>
+            </div>
+            <div>
+              <div class="card mb6">
+                <div class="sech"><div class="sect">AI Quality Score</div></div>
+                <div class="rsv" id="rsv">78</div>
+                <div class="rsl" style="margin-bottom:8px">Overall Score / 100</div>
+                <div class="ch" style="height:200px"><canvas id="ch-radar"></canvas></div>
+                <div class="rl" id="radar-leg"></div>
+              </div>
+              <div class="card">
+                <div class="sect" style="margin-bottom:14px">Review Summary</div>
+                <div style="display:flex;flex-direction:column;gap:10px" id="rev-sum"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ▓▓ ANALYTICS ▓▓ -->
+    <div class="page" id="page-analytics">
+      <div class="ph">
+        <div><div class="pht">Analytics</div><div class="phs">Security trends, issue breakdown, and team performance</div></div>
+        <div style="display:flex;gap:8px">
+          <div class="fb on">Last 30 Days</div>
+          <div class="fb">Last 90 Days</div>
+          <div class="fb">All Time</div>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="g4 mb6">
+          <div class="card" style="text-align:center"><div class="bn" style="color:var(--cy)">247</div><div style="font-size:11px;color:var(--fa);margin-top:4px">Total Reviews</div><div class="badge ok" style="margin-top:8px;display:inline-flex">↑ 28%</div></div>
+          <div class="card" style="text-align:center"><div class="bn" style="color:var(--er)">43</div><div style="font-size:11px;color:var(--fa);margin-top:4px">Critical Issues</div><div class="badge er" style="margin-top:8px;display:inline-flex">↓ 12%</div></div>
+          <div class="card" style="text-align:center"><div class="bn" style="color:var(--ok)">94%</div><div style="font-size:11px;color:var(--fa);margin-top:4px">Fix Acceptance</div><div class="badge ok" style="margin-top:8px;display:inline-flex">↑ 5%</div></div>
+          <div class="card" style="text-align:center"><div class="bn" style="color:var(--wa)">1.8m</div><div style="font-size:11px;color:var(--fa);margin-top:4px">Avg Review Time</div><div class="badge ok" style="margin-top:8px;display:inline-flex">↓ 40%</div></div>
+        </div>
+        <div class="ag mb6">
+          <div class="card"><div class="sech"><div><div class="sect">Reviews Per Day</div><div class="secs">30-day trend</div></div><div class="badge ok">↑ 28%</div></div><div class="ch tl"><canvas id="ch-a1"></canvas></div></div>
+          <div class="card"><div class="sech"><div class="sect">Issues by Type</div></div><div class="ch tl"><canvas id="ch-a2"></canvas></div></div>
+        </div>
+        <div class="g2 mb6">
+          <div class="card"><div class="sech"><div><div class="sect">Security Trends</div><div class="secs">Critical vs. High vs. Medium</div></div></div><div class="ch"><canvas id="ch-a3"></canvas></div></div>
+          <div class="card"><div class="sech"><div><div class="sect">Code Quality Trend</div><div class="secs">Avg score over time</div></div></div><div class="ch"><canvas id="ch-a4"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="sech"><div class="sect">Team Performance</div><button class="btn btn-s sm">Export CSV</button></div>
+          <table class="tt"><thead><tr><th>Developer</th><th>PRs</th><th>Fixed</th><th>Avg Score</th><th>Fix Rate</th><th>Activity</th><th>Status</th></tr></thead><tbody id="team-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ▓▓ NOTIFICATIONS ▓▓ -->
+    <div class="page" id="page-notifications">
+      <div class="ph">
+        <div><div class="pht">Notifications</div><div class="phs" id="notif-sub">5 unread notifications</div></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-s sm" onclick="markAllRead()">✓ Mark All Read</button>
+          <button class="btn btn-s sm">⚙ Settings</button>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="frow">
+          <div class="fb on" onclick="fNotif(this,'all')">All</div>
+          <div class="fb" onclick="fNotif(this,'security')">🔴 Security</div>
+          <div class="fb" onclick="fNotif(this,'success')">🟢 Reviews</div>
+          <div class="fb" onclick="fNotif(this,'info')">🔵 PR Updates</div>
+          <div class="fb" onclick="fNotif(this,'warning')">🟡 Warnings</div>
+        </div>
+        <div class="tbc"><div class="nlist" id="nlist"></div></div>
+      </div>
+    </div>
+
+    <!-- ▓▓ ADMIN ▓▓ -->
+    <div class="page" id="page-admin">
+      <div class="ph">
+        <div><div class="pht">Admin Panel</div><div class="phs">Configure rules, manage users, and integrations</div></div>
+        <button class="btn btn-p">💾 Save All Changes</button>
+      </div>
+      <div class="pc">
+        <div class="adg mb6">
+          <div class="card"><div class="sech"><div class="sect">Review Rules</div><div class="badge cy">8 rules</div></div><div class="tgli" id="rules-list"></div></div>
+          <div class="card"><div class="sech"><div class="sect">Severity Thresholds</div></div><div id="thr-list"></div></div>
+        </div>
+        <div class="adg">
+          <div class="card">
+            <div class="sech"><div class="sect">Users</div><button class="btn btn-p sm">+ Invite</button></div>
+            <table class="tt"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="users-tbody"></tbody></table>
+          </div>
+          <div class="card"><div class="sech"><div class="sect">Integrations</div><button class="btn btn-s sm">+ Connect</button></div><div id="int-list"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .mn -->
+ </div>
+</div><!-- end #app -->
+
+<div id="tw"></div>
+
+<script>
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+const REPOS=[
+  {id:1,name:'frontend-platform',desc:'React + TypeScript monorepo for core UI',lang:'TypeScript',color:'#3178C6',icon:'⚛️',bg:'rgba(49,120,198,0.15)',prs:4,stars:128,last:'2h ago',act:[3,5,2,8,6,7,4,9,5,8,6,7,3,8],status:'reviewed',cov:94},
+  {id:2,name:'api-gateway',desc:'Node.js API gateway with rate limiting',lang:'TypeScript',color:'#3178C6',icon:'🌐',bg:'rgba(49,120,198,0.15)',prs:2,stars:89,last:'5h ago',act:[1,3,5,2,4,6,3,5,7,4,6,8,5,7],status:'pending',cov:87},
+  {id:3,name:'ml-pipeline',desc:'Python ML data processing pipeline',lang:'Python',color:'#3572A5',icon:'🐍',bg:'rgba(53,114,165,0.15)',prs:6,stars:204,last:'1h ago',act:[8,6,9,7,5,8,9,7,8,6,9,8,7,9],status:'reviewed',cov:91},
+  {id:4,name:'auth-service',desc:'OAuth2 + JWT authentication microservice',lang:'Go',color:'#00ADD8',icon:'🔒',bg:'rgba(0,173,216,0.15)',prs:1,stars:156,last:'3h ago',act:[2,4,3,5,4,6,5,4,6,5,7,6,5,6],status:'critical',cov:78},
+  {id:5,name:'data-warehouse',desc:'Rust high-performance data warehouse',lang:'Rust',color:'#CE422B',icon:'🦀',bg:'rgba(206,66,43,0.15)',prs:3,stars:312,last:'8h ago',act:[5,7,6,8,7,6,8,9,7,8,9,8,7,9],status:'reviewed',cov:96},
+  {id:6,name:'mobile-sdk',desc:'React Native cross-platform mobile SDK',lang:'TypeScript',color:'#3178C6',icon:'📱',bg:'rgba(49,120,198,0.15)',prs:5,stars:78,last:'12h ago',act:[3,2,4,3,5,4,3,5,4,6,5,4,6,5],status:'pending',cov:82},
+  {id:7,name:'event-bus',desc:'Kafka-backed distributed event bus',lang:'Java',color:'#B07219',icon:'☕',bg:'rgba(176,114,25,0.15)',prs:2,stars:167,last:'1d ago',act:[4,6,5,7,6,5,7,6,8,7,6,8,7,6],status:'reviewed',cov:89},
+  {id:8,name:'infra-automation',desc:'Terraform + Ansible infrastructure code',lang:'Python',color:'#3572A5',icon:'⚙️',bg:'rgba(53,114,165,0.15)',prs:1,stars:94,last:'2d ago',act:[2,3,2,4,3,2,4,3,5,4,3,5,4,3],status:'pending',cov:71},
+];
+const PRS=[
+  {id:247,title:'Fix SQL injection in user auth endpoint',author:'Alex M.',init:'AM',branch:'fix/sql-injection',files:3,add:45,rem:12,status:'open',score:88,repo:'auth-service',time:'2h ago'},
+  {id:246,title:'Add rate limiting middleware to API routes',author:'Sarah K.',init:'SK',branch:'feat/rate-limit',files:7,add:134,rem:23,status:'review',score:76,repo:'api-gateway',time:'4h ago'},
+  {id:245,title:'Refactor authentication token validation',author:'James L.',init:'JL',branch:'refactor/auth-tokens',files:5,add:89,rem:67,status:'merged',score:92,repo:'frontend-platform',time:'6h ago'},
+  {id:244,title:'Remove hardcoded API keys from config',author:'Maria T.',init:'MT',branch:'security/remove-keys',files:2,add:18,rem:14,status:'open',score:95,repo:'api-gateway',time:'8h ago'},
+  {id:243,title:'Fix memory leak in event listeners',author:'David R.',init:'DR',branch:'fix/memory-leak',files:4,add:56,rem:34,status:'merged',score:83,repo:'frontend-platform',time:'1d ago'},
+  {id:242,title:'Add input validation for user profile update',author:'Emma W.',init:'EW',branch:'feat/input-validation',files:6,add:112,rem:8,status:'review',score:79,repo:'auth-service',time:'1d ago'},
+  {id:241,title:'Optimize database query performance',author:'Alex M.',init:'AM',branch:'perf/db-queries',files:8,add:67,rem:145,status:'merged',score:91,repo:'ml-pipeline',time:'2d ago'},
+  {id:240,title:'Fix XSS vulnerability in comment renderer',author:'Sarah K.',init:'SK',branch:'fix/xss-comment',files:3,add:34,rem:28,status:'open',score:87,repo:'frontend-platform',time:'2d ago'},
+  {id:239,title:'Update dependencies for security patches',author:'James L.',init:'JL',branch:'deps/security-update',files:1,add:47,rem:47,status:'merged',score:100,repo:'data-warehouse',time:'3d ago'},
+  {id:238,title:'Add CSRF protection to form submissions',author:'Maria T.',init:'MT',branch:'security/csrf',files:5,add:78,rem:12,status:'closed',score:84,repo:'frontend-platform',time:'3d ago'},
+  {id:237,title:'Implement zero-trust network policy',author:'David R.',init:'DR',branch:'feat/zero-trust',files:12,add:234,rem:67,status:'draft',score:72,repo:'infra-automation',time:'4d ago'},
+  {id:236,title:'Fix race condition in async data processing',author:'Emma W.',init:'EW',branch:'fix/race-condition',files:4,add:56,rem:23,status:'open',score:81,repo:'ml-pipeline',time:'4d ago'},
+];
+const TEAM=[
+  {name:'Alex Martinez',init:'AM',role:'Senior Dev',prs:34,fixed:89,score:91,rate:'96%',act:[4,5,3,6,7,5,8],status:'online'},
+  {name:'Sarah Kim',init:'SK',role:'Lead Engineer',prs:28,fixed:67,score:88,rate:'94%',act:[6,7,8,5,9,7,8],status:'online'},
+  {name:'James Liu',init:'JL',role:'Developer',prs:19,fixed:45,score:84,rate:'91%',act:[3,4,5,3,6,4,5],status:'away'},
+  {name:'Maria Torres',init:'MT',role:'Security Eng',prs:22,fixed:78,score:93,rate:'98%',act:[7,8,6,9,8,7,9],status:'online'},
+  {name:'David Ross',init:'DR',role:'Developer',prs:15,fixed:34,score:79,rate:'87%',act:[2,3,4,2,5,3,4],status:'offline'},
+  {name:'Emma Wilson',init:'EW',role:'Junior Dev',prs:12,fixed:28,score:76,rate:'83%',act:[3,2,4,3,4,3,5],status:'online'},
+];
+const NOTIFS=[
+  {id:1,type:'security',title:'Critical Security Issue Detected',desc:'SQL injection vulnerability found in auth-service PR #247. Immediate action required.',time:'2 minutes ago',unread:true},
+  {id:2,type:'success',title:'AI Review Completed',desc:'PR #246 (Add rate limiting middleware) review completed. Score: 76/100.',time:'4 hours ago',unread:true},
+  {id:3,type:'warning',title:'Hardcoded Secret Detected',desc:'Potential API key exposure in api-gateway PR #244. Review before merging.',time:'8 hours ago',unread:true},
+  {id:4,type:'info',title:'New Pull Request Opened',desc:'PR #236 opened by Emma Wilson: Fix race condition in async data processing.',time:'4 days ago',unread:true},
+  {id:5,type:'success',title:'Auto-Merge Successful',desc:'PR #245 auto-merged after passing all checks. Branch deleted.',time:'6 hours ago',unread:true},
+  {id:6,type:'warning',title:'Test Coverage Below Threshold',desc:'infra-automation coverage dropped to 71%. Set threshold: 80%.',time:'1 day ago',unread:false},
+  {id:7,type:'info',title:'Dependency Update Available',desc:'5 security patches available for frontend-platform. Auto-update scheduled.',time:'2 days ago',unread:false},
+  {id:8,type:'success',title:'Team Milestone Reached',desc:'Your team fixed 500 issues this month! Quality score improved by 12%.',time:'3 days ago',unread:false},
+  {id:9,type:'security',title:'XSS Pattern Detected',desc:'Cross-site scripting pattern found in frontend-platform PR #240.',time:'2 days ago',unread:false},
+  {id:10,type:'info',title:'New Team Member',desc:'Emma Wilson joined with Developer role. Onboarding email sent.',time:'5 days ago',unread:false},
+];
+const RULES=[
+  {name:'SQL Injection Detection',desc:'Detect and flag SQL injection vulnerabilities',on:true},
+  {name:'XSS Prevention',desc:'Identify cross-site scripting attack patterns',on:true},
+  {name:'Hardcoded Secrets',desc:'Scan for API keys and passwords in code',on:true},
+  {name:'Duplicate Code Detection',desc:'Flag code duplication above threshold (15%)',on:true},
+  {name:'Complexity Analysis',desc:'Flag functions exceeding cyclomatic complexity 10',on:false},
+  {name:'AI Auto-fix Suggestions',desc:'Generate AI-powered fix suggestions automatically',on:true},
+  {name:'Auto-Merge Safe PRs',desc:'Auto-merge PRs scoring above 90/100',on:false},
+  {name:'Dependency Scanning',desc:'Check for vulnerable npm/pip/cargo packages',on:true},
+];
+const FEED=[
+  {t:'ok',msg:'PR #247 review completed — Score 88/100',time:'2m ago'},
+  {t:'er',msg:'CRITICAL: SQL injection in auth-service #247',time:'2m ago'},
+  {t:'cy',msg:'Agent analyzing PR #246 (rate-limit)',time:'15m ago'},
+  {t:'ok',msg:'PR #245 auto-merged successfully ✓',time:'6h ago'},
+  {t:'wa',msg:'Hardcoded key found in api-gateway #244',time:'8h ago'},
+  {t:'cy',msg:'New PR #236 queued for review',time:'4d ago'},
+];
+const SECI=[
+  {sev:'critical',title:'SQL Injection Vulnerability',desc:'Line 47: User input directly concatenated into SQL query without parameterization. Attacker can execute arbitrary SQL commands. CVSS: 9.8.',fix:'Replace string concatenation with parameterized queries: db.query(\'SELECT * FROM users WHERE id=?\', [id])',code:'db.query(`SELECT * FROM users WHERE id=${req.params.id}`);'},
+  {sev:'high',title:'Missing Input Sanitization',desc:'Line 23: Raw req.body.password used without sanitization, enabling injection attacks and XSS through stored data.',fix:'Apply sanitize() before processing: const password = sanitize(req.body.password);',code:'const password = req.body.password; // unsanitized'},
+  {sev:'medium',title:'Weak Password Hashing (MD5)',desc:'Line 89: MD5 is cryptographically broken. Rainbow table attacks trivially succeed against MD5-hashed passwords.',fix:'Use bcrypt with cost factor ≥12: await bcrypt.hash(password, 12)',code:'const hash = md5(password); // MD5 is broken'},
+];
+const QUALI=[
+  {sev:'high',title:'Duplicate Code Block',desc:'Lines 34–67 duplicate logic from utils/auth.ts:12–45. Maintenance risk: changing one copy without the other causes bugs.',fix:'Extract to shared function validateUserAuth() in utils and import it.'},
+  {sev:'medium',title:'High Cyclomatic Complexity',desc:'processUserLogin() has complexity 18 (threshold: 10). Difficult to test and maintain.',fix:'Split into validateCredentials(), generateSession(), and logLoginEvent().'},
+  {sev:'medium',title:'Unhandled Promise Rejection',desc:'Lines 102–115: async operations missing try/catch. Unhandled rejections crash Node.js in production.',fix:'Wrap all async calls in try/catch or add .catch() handlers.'},
+  {sev:'low',title:'Unused Variable',desc:'tempToken declared at line 78 never used. Dead code increases cognitive load.',fix:'Remove unused variable declaration.'},
+  {sev:'low',title:'Missing TypeScript Return Type',desc:'getUser() missing return type annotation, reducing type safety and IDE support.',fix:'Add: async getUser(): Promise<User | null>'},
+];
+const PERFI=[
+  {sev:'medium',title:'N+1 Query Problem',desc:'Loop at line 56 runs 1 DB query per user. With 1000 users = 1000 queries, causing severe performance degradation.',fix:'Use a single JOIN or WHERE id IN (...) batch query to reduce to 1 DB call.',code:'users.forEach(async u => {\n  const p = await db.getProfile(u.id); // N+1!\n});'},
+  {sev:'low',title:'Missing Response Caching',desc:'/api/profile has no caching. Database hit on every request even for identical data.',fix:'Redis cache with 5-min TTL: redis.setex(key, 300, JSON.stringify(data))',code:'// No cache headers set\nres.json(userProfile); // DB hit every time'},
+];
+const DOCSI=[
+  {title:'Missing JSDoc Comments',desc:'processUserLogin() has no documentation. Required for API doc generation with TypeDoc.',fix:'Add JSDoc with @param, @returns, and @throws annotations.'},
+  {title:'No OpenAPI Documentation',desc:'POST /api/auth/login missing OpenAPI/Swagger spec. Breaking for API consumers.',fix:'Add @openapi annotation above route handler with request/response schema.'},
+  {title:'Outdated README',desc:'README.md references config options removed in v2.0, confusing new developers.',fix:'Update README to reflect current configuration schema and env variables.'},
+];
+const DIFF_O=[
+  {ln:1,t:'n',c:'<span class="k">import</span> { db } <span class="k">from</span> <span class="s">\'../database\'</span>;'},
+  {ln:2,t:'n',c:''},
+  {ln:3,t:'rem',c:'<span class="k">const</span> password = req.body.password;'},
+  {ln:4,t:'rem',c:'<span class="k">const</span> hash = <span class="f">md5</span>(password);'},
+  {ln:5,t:'n',c:''},
+  {ln:6,t:'rem',c:'db.<span class="f">query</span>(<span class="s">`SELECT * FROM users WHERE id=${id}`</span>);'},
+  {ln:7,t:'n',c:''},
+  {ln:8,t:'n',c:'<span class="cm">// process login</span>'},
+  {ln:9,t:'n',c:'<span class="k">return</span> { success: <span class="k">true</span> };'},
+];
+const DIFF_N=[
+  {ln:1,t:'n',c:'<span class="k">import</span> { db, sanitize } <span class="k">from</span> <span class="s">\'../database\'</span>;'},
+  {ln:2,t:'n',c:''},
+  {ln:3,t:'add',c:'<span class="k">const</span> password = <span class="f">sanitize</span>(req.body.password);'},
+  {ln:4,t:'add',c:'<span class="k">const</span> hash = <span class="k">await</span> bcrypt.<span class="f">hash</span>(password, <span class="n">12</span>);'},
+  {ln:5,t:'n',c:''},
+  {ln:6,t:'add',c:'db.<span class="f">query</span>(<span class="s">\'SELECT * FROM users WHERE id=?\'</span>, [id]);'},
+  {ln:7,t:'add',c:'<span class="cm">// ✦ AI: SQL injection fixed · sanitized</span>'},
+  {ln:8,t:'n',c:'<span class="cm">// process login</span>'},
+  {ln:9,t:'n',c:'<span class="k">return</span> { success: <span class="k">true</span> };'},
+];
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let curPage='dashboard',curLang='all',curPRF='all',curNF='all';
+let agRunning=false,agTimer=null,agIdx=0,prPage=1;
+const PR_PP=8;
+let CH={};
+
+// ════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════
+function login(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  setTimeout(()=>{
+    initDash();renderRepos();renderPRs();renderNotifs();renderAdmin();fillPRSel();startLiveFeed();
+  },80);
+  toast('ok','🎉 Welcome back!','Logged in as Dev Varsha · Pro Plan');
+}
+
+// ════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════
+function nav(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
+  document.getElementById('page-'+p).classList.add('on');
+  document.getElementById('ni-'+p).classList.add('on');
+  curPage=p;
+  setTimeout(()=>{
+    if(p==='dashboard')initDashCharts();
+    if(p==='analytics')initAnalCharts();
+    if(p==='review'&&!document.getElementById('rev-results').classList.contains('hidden'))initRadar();
+  },30);
+}
+
+// ════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════
+function initDash(){
+  cnt('m-repos',8,900);cnt('m-prs',247,1300);cnt('m-sec',43,1100);cnt('m-score',87,1500);
+  setTimeout(()=>{bar('bar-repos',80);bar('bar-prs',65);bar('bar-sec',43);bar('bar-score',87);},200);
+  renderFeed();renderRecPRs();initDashCharts();
+}
+function cnt(id,tgt,dur){
+  const el=document.getElementById(id),steps=55,st=dur/steps,inc=tgt/steps;
+  let v=0;const t=setInterval(()=>{v+=inc;if(v>=tgt){v=tgt;clearInterval(t);}el.textContent=Math.round(v);},st);
+}
+function bar(id,p){document.getElementById(id).style.width=p+'%';}
+function renderFeed(){
+  document.getElementById('act-feed').innerHTML=FEED.map(f=>`
+    <div class="afit"><div class="adot ${f.t}"></div><div class="act"><div class="att">${f.msg}</div><div class="atm">${f.time}</div></div></div>`).join('');
+}
+function renderRecPRs(){
+  document.getElementById('rec-prs').innerHTML=PRS.slice(0,5).map(pr=>`
+    <div class="afit" style="cursor:pointer" onclick="revPR(${pr.id})">
+      <div style="color:var(--cy);font-weight:700;font-size:11.5px;font-family:'JetBrains Mono',monospace;flex-shrink:0">#${pr.id}</div>
+      <div class="act"><div class="att">${pr.title}</div><div class="atm">${pr.author} · ${pr.time}</div></div>
+      <div class="scc ${pr.score>=85?'hi':pr.score>=70?'md':'lo'}" style="width:38px;height:38px;font-size:11px">${pr.score}</div>
+    </div>`).join('');
+}
+function initDashCharts(){
+  if(CH.d1)CH.d1.destroy();
+  const c1=document.getElementById('ch-d1');
+  if(!c1)return;
+  const days=[],now=new Date();
+  for(let i=13;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);days.push(d.toLocaleDateString('en',{month:'short',day:'numeric'}));}
+  CH.d1=new Chart(c1,{type:'bar',data:{labels:days,datasets:[{label:'Reviews',data:[4,7,5,8,12,9,6,11,8,15,10,13,9,14],backgroundColor:'rgba(6,182,212,0.3)',borderColor:'#06B6D4',borderWidth:2,borderRadius:6,hoverBackgroundColor:'rgba(6,182,212,0.5)'}]},options:cOpts()});
+  if(CH.d2)CH.d2.destroy();
+  const c2=document.getElementById('ch-d2');
+  if(!c2)return;
+  CH.d2=new Chart(c2,{type:'doughnut',data:{labels:['Security','Code Quality','Performance','Documentation'],datasets:[{data:[28,41,18,13],backgroundColor:['#EF4444','#F59E0B','#06B6D4','#7C3AED'],borderColor:'#16203A',borderWidth:3,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'rgba(255,255,255,0.65)',font:{family:'Inter',size:11},padding:12,boxWidth:11}},tooltip:ttS()},cutout:'65%'}});
+}
+
+// ════════════════════════════════════════
+// REPOS
+// ════════════════════════════════════════
+function renderRepos(){
+  const s=(document.getElementById('repo-s')||{value:''}).value.toLowerCase();
+  const repos=REPOS.filter(r=>(!s||r.name.toLowerCase().includes(s)||r.desc.toLowerCase().includes(s))&&(curLang==='all'||r.lang===curLang));
+  const sC={reviewed:'ok',pending:'wa',critical:'er'};
+  const sL={reviewed:'✓ Reviewed',pending:'⏳ Pending',critical:'⚠ Critical'};
+  document.getElementById('repo-grid').innerHTML=repos.map(r=>{
+    const mx=Math.max(...r.act);
+    const bars=r.act.map((h,i)=>`<div class="ab" style="height:${(h/mx)*100}%;background:var(--cy);opacity:${.3+(i/r.act.length)*.7}"></div>`).join('');
+    return `<div class="rc" onclick="nav('prs')">
+      <div class="rch"><div class="rci" style="background:${r.bg}">${r.icon}</div><div><div class="rnm">${r.name}</div><div class="rds">${r.desc}</div></div></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px">
+        <div class="lb" style="background:${r.bg};color:${r.color}"><div class="ld" style="background:${r.color}"></div>${r.lang}</div>
+        <div class="badge ${sC[r.status]}">${sL[r.status]}</div>
+      </div>
+      <div class="rst">
+        <div class="rss"><strong>${r.prs}</strong>Open PRs</div>
+        <div class="rss"><strong>${r.stars}</strong>Stars</div>
+        <div class="rss"><strong>${r.cov}%</strong>Coverage</div>
+        <div class="rss" style="margin-left:auto">${r.last}</div>
+      </div>
+      <div style="margin-top:9px"><div style="font-size:10px;color:var(--fa);margin-bottom:3px">Activity (14d)</div><div class="abr">${bars}</div></div>
+    </div>`;
+  }).join('');
+}
+function filterRepos(){renderRepos();}
+function fLang(btn,lang){
+  curLang=lang;
+  btn.closest('.frow').querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderRepos();
+}
+
+// ════════════════════════════════════════
+// PULL REQUESTS
+// ════════════════════════════════════════
+function renderPRs(){
+  const s=(document.getElementById('pr-s')||{value:''}).value.toLowerCase();
+  const prs=PRS.filter(pr=>(!s||pr.title.toLowerCase().includes(s)||('#'+pr.id).includes(s))&&(curPRF==='all'||pr.status===curPRF));
+  const start=(prPage-1)*PR_PP,page=prs.slice(start,start+PR_PP);
+  document.getElementById('pr-tbody').innerHTML=page.map(pr=>{
+    const sc=pr.score>=90?'var(--ok)':pr.score>=75?'var(--cy)':pr.score>=60?'var(--wa)':'var(--er)';
+    return `<tr onclick="revPR(${pr.id})">
+      <td><span class="pnum">#${pr.id}</span></td>
+      <td class="ptw"><div class="ptm">${pr.title}</div><div class="pts">${pr.repo} · ${pr.time}</div></td>
+      <td><div style="display:flex;align-items:center;gap:7px"><div class="avs">${pr.init}</div><span style="font-size:12px">${pr.author}</span></div></td>
+      <td><code class="br">${pr.branch}</code></td>
+      <td style="text-align:center">${pr.files}</td>
+      <td><div class="sp ${pr.status}">• ${pr.status.charAt(0).toUpperCase()+pr.status.slice(1)}</div></td>
+      <td><div class="sbr"><div class="str"><div class="sfill" style="width:${pr.score}%;background:${sc}"></div></div><span style="font-size:12px;font-weight:700;color:${sc}">${pr.score}</span></div></td>
+      <td><button class="btn btn-p sm" onclick="event.stopPropagation();revPR(${pr.id})">Review</button></td>
+    </tr>`;
+  }).join('');
+  renderPag(prs.length);
+}
+function renderPag(tot){
+  const pages=Math.ceil(tot/PR_PP);
+  if(pages<=1){document.getElementById('pr-pag').innerHTML='';return;}
+  let h=`<div class="pb" onclick="chPg(${prPage-1})">‹</div>`;
+  for(let i=1;i<=pages;i++)h+=`<div class="pb ${i===prPage?'on':''}" onclick="chPg(${i})">${i}</div>`;
+  h+=`<div class="pb" onclick="chPg(${prPage+1})">›</div>`;
+  document.getElementById('pr-pag').innerHTML=h;
+}
+function chPg(p){prPage=Math.max(1,Math.min(p,Math.ceil(PRS.length/PR_PP)));renderPRs();}
+function filterPRs(){prPage=1;renderPRs();}
+function fPRS(btn,s){
+  curPRF=s;prPage=1;
+  btn.closest('.frow').querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderPRs();
+}
+function revPR(id){document.getElementById('pr-sel').value=id;selectPR(id);nav('review');}
+
+// ════════════════════════════════════════
+// AI REVIEW
+// ════════════════════════════════════════
+function fillPRSel(){
+  document.getElementById('pr-sel').innerHTML='<option value="">— Select a Pull Request —</option>'+
+    PRS.map(pr=>`<option value="${pr.id}">#${pr.id} · ${pr.title.substring(0,52)}</option>`).join('');
+}
+function selectPR(id){
+  if(!id)return;
+  const pr=PRS.find(p=>p.id==id);if(!pr)return;
+  document.getElementById('rev-title').textContent=`#${pr.id} · ${pr.title}`;
+  document.getElementById('rev-meta').textContent=`${pr.author} · ${pr.branch} · ${pr.repo} · ${pr.time}`;
+  document.getElementById('s-files').textContent=pr.files;
+  document.getElementById('s-add').textContent='+'+pr.add;
+  document.getElementById('s-rem').textContent='-'+pr.rem;
+  document.getElementById('s-score').textContent=pr.score;
+  resetPipeline();document.getElementById('rev-results').classList.add('hidden');
+}
+function resetPipeline(){
+  agIdx=0;
+  const ICONS=['📥','🔍','✏️','📤','✅'],LABS=['Pull PR','Analyze Bug','Generate Fix','Push Fix','Auto-Merge'];
+  for(let i=0;i<5;i++){
+    document.getElementById('pc'+i).className='pc2';
+    document.getElementById('pc'+i).textContent=ICONS[i];
+    document.getElementById('pl'+i).className='pll';
+    document.getElementById('pl'+i).textContent=LABS[i];
+    document.getElementById('pd'+i).textContent='';
+    document.getElementById('ps'+i).classList.remove('done','run');
+  }
+  document.getElementById('log').innerHTML='<div class="ll"><span class="ltm">—</span><span class="li">INFO</span><span class="lm">Agent ready. Press Start to begin analysis.</span></div>';
+  setALbl('Idle','var(--fa)');
+}
+function setALbl(txt,col){
+  document.getElementById('ag-lbl').innerHTML=`<div style="width:6px;height:6px;border-radius:50%;background:${col}"></div><span style="font-size:11px;font-weight:700;color:${col}">${txt}</span>`;
+}
+const STEPS=[
+  {name:'Pull PR',dur:1900,logs:[{l:'i',m:'Connecting to GitHub API...'},{l:'i',m:'Fetching PR diff from auth-service...'},{l:'s',m:'PR pulled. 3 files changed, +45 -12 lines.'}]},
+  {name:'Analyze Bug',dur:3200,logs:[{l:'i',m:'Initializing Claude AI analysis engine...'},{l:'i',m:'Scanning auth/login.ts for vulnerabilities...'},{l:'w',m:'CRITICAL: SQL injection at line 47 (CVSS: 9.8)'},{l:'w',m:'HIGH: Missing input sanitization at line 23'},{l:'i',m:'Analyzing code quality and performance...'},{l:'s',m:'Analysis complete. 3 security · 5 quality · 2 perf issues.'}]},
+  {name:'Generate Fix',dur:2400,logs:[{l:'i',m:'Claude generating fix for SQL injection...'},{l:'i',m:'Applying parameterized query pattern...'},{l:'i',m:'Replacing MD5 hash → bcrypt(12)...'},{l:'s',m:'3 automated fixes generated. Confidence: 97%'}]},
+  {name:'Push Fix',dur:1600,logs:[{l:'i',m:'Committing fixes to fix/sql-injection branch...'},{l:'i',m:'Running pre-commit checks...'},{l:'s',m:'Pushed commit a7f3c9d "AI: Fix SQL injection + sanitization"'}]},
+  {name:'Auto-Merge',dur:1300,logs:[{l:'i',m:'Running CI/CD pipeline (47 tests)...'},{l:'i',m:'All tests passed ✓'},{l:'s',m:'PR score: 63 → 92. Auto-merge threshold met.'},{l:'s',m:'✅ PR #247 auto-merged into main branch.'}]},
+];
+function startAgent(){
+  const v=document.getElementById('pr-sel').value;
+  if(!v){toast('wa','No PR Selected','Please select a pull request first.');return;}
+  agRunning=true;agIdx=0;
+  document.getElementById('start-btn').classList.add('hidden');
+  document.getElementById('stop-btn').classList.remove('hidden');
+  document.getElementById('rev-results').classList.add('hidden');
+  setALbl('Running','var(--ok)');
+  addLog('i','Agent starting pipeline for PR #'+v+'...');
+  runStep();
+}
+function runStep(){
+  if(!agRunning||agIdx>=STEPS.length){finishAgent();return;}
+  const step=STEPS[agIdx];
+  const ci=document.getElementById('pc'+agIdx),li=document.getElementById('pl'+agIdx),si=document.getElementById('ps'+agIdx);
+  ci.className='pc2 run';li.className='pll act';li.textContent=step.name+'...';si.classList.add('run');
+  let lI=0;
+  const lT=setInterval(()=>{
+    if(lI<step.logs.length){addLog(step.logs[lI].l,step.logs[lI].m);lI++;}else clearInterval(lT);
+  },step.dur/(step.logs.length+1));
+  agTimer=setTimeout(()=>{
+    ci.className='pc2 done';ci.textContent='✓';
+    li.className='pll done';li.textContent=STEPS[agIdx].name;
+    document.getElementById('pd'+agIdx).textContent=(step.dur/1000).toFixed(1)+'s';
+    si.classList.remove('run');si.classList.add('done');
+    agIdx++;runStep();
+  },step.dur);
+}
+function finishAgent(){
+  agRunning=false;
+  document.getElementById('start-btn').classList.remove('hidden');
+  document.getElementById('stop-btn').classList.add('hidden');
+  setALbl('Complete','var(--ok)');
+  addLog('s','🎉 Pipeline complete! PR reviewed, fixed, and merged.');
+  setTimeout(()=>{
+    document.getElementById('rev-results').classList.remove('hidden');
+    renderSec();renderQual();renderPerf();renderDocs();renderDiff();initRadar();renderRevSum();
+    showTab('sec');
+    toast('ok','✅ Review Complete','PR #247 analyzed · fixes applied · auto-merged.');
+  },300);
+}
+function stopAgent(){
+  agRunning=false;if(agTimer)clearTimeout(agTimer);
+  document.getElementById('start-btn').classList.remove('hidden');
+  document.getElementById('stop-btn').classList.add('hidden');
+  setALbl('Stopped','var(--wa)');addLog('w','Agent stopped by user.');
+}
+function addLog(type,msg){
+  const log=document.getElementById('log');
+  const now=new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const cls={i:'li',s:'ls',w:'lw',e:'le'}[type]||'li';
+  const lbl={i:'INFO',s:'✓ OK ',w:'WARN',e:'ERR '}[type]||'INFO';
+  const d=document.createElement('div');d.className='ll';
+  d.innerHTML=`<span class="ltm">${now}</span><span class="${cls}">${lbl}</span><span class="lm">${msg}</span>`;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+}
+function clearLog(){document.getElementById('log').innerHTML='<div class="ll"><span class="ltm">—</span><span class="li">INFO</span><span class="lm">Log cleared.</span></div>';}
+function showTab(tab){
+  ['sec','qual','perf','docs'].forEach(t=>{document.getElementById('tab-'+t).classList.remove('on');document.getElementById('tc-'+t).classList.add('hidden');});
+  document.getElementById('tab-'+tab).classList.add('on');document.getElementById('tc-'+tab).classList.remove('hidden');
+}
+function renderSec(){document.getElementById('sec-issues').innerHTML=SECI.map(i=>`<div class="ic"><div class="ih"><div class="isev ${i.sev}">${i.sev.toUpperCase()}</div><div><div class="iti">${i.title}</div><div class="ids" style="margin-top:3px">${i.desc}</div></div></div><div class="ifx"><strong>✦ AI Fix:</strong> ${i.fix}</div><div class="csnip">${i.code}</div></div>`).join('');}
+function renderQual(){document.getElementById('qual-issues').innerHTML=QUALI.map(i=>`<div class="ic"><div class="ih"><div class="isev ${i.sev}">${i.sev.toUpperCase()}</div><div><div class="iti">${i.title}</div><div class="ids" style="margin-top:3px">${i.desc}</div></div></div><div class="ifx"><strong>✦ Recommendation:</strong> ${i.fix}</div></div>`).join('');}
+function renderPerf(){document.getElementById('perf-issues').innerHTML=PERFI.map(i=>`<div class="ic"><div class="ih"><div class="isev ${i.sev}">${i.sev.toUpperCase()}</div><div><div class="iti">${i.title}</div><div class="ids" style="margin-top:3px">${i.desc}</div></div></div><div class="ifx"><strong>⚡ Optimization:</strong> ${i.fix}</div><div class="csnip">${i.code}</div></div>`).join('');}
+function renderDocs(){document.getElementById('docs-issues').innerHTML=DOCSI.map(i=>`<div class="ic"><div class="ih"><div class="isev medium">DOCS</div><div><div class="iti">${i.title}</div><div class="ids" style="margin-top:3px">${i.desc}</div></div></div><div class="ifx"><strong>📝 Action:</strong> ${i.fix}</div></div>`).join('');}
+function renderDiff(){
+  const mk=arr=>arr.map(l=>{const pfx=l.t==='rem'?'-':l.t==='add'?'+':' ';const pc=l.t==='rem'?'r':l.t==='add'?'a':'';return `<div class="dl ${l.t==='rem'?'rem':l.t==='add'?'add':''}"><span class="dln">${l.ln}</span><span class="dpx ${pc}">${pfx}</span><span class="dc">${l.c||'&nbsp;'}</span></div>`;}).join('');
+  document.getElementById('diff-view').innerHTML=`<div class="dp"><div class="dph old">⊖ Before (Original)</div><div class="dls">${mk(DIFF_O)}</div></div><div class="dp"><div class="dph nw">⊕ After (AI Fixed)</div><div class="dls">${mk(DIFF_N)}<div class="acmt"><span style="font-size:13px">🤖</span><div><strong>AI Comment:</strong> SQL injection fixed with parameterized queries. Input sanitized. Hash upgraded MD5→bcrypt(12). CVSS 9.8 resolved.</div></div></div></div>`;
+}
+function initRadar(){
+  if(CH.radar)CH.radar.destroy();
+  const ctx=document.getElementById('ch-radar');if(!ctx)return;
+  CH.radar=new Chart(ctx,{type:'radar',data:{labels:['Security','Maintainability','Performance','Readability','Documentation'],datasets:[{label:'Before Fix',data:[45,72,68,80,40],backgroundColor:'rgba(239,68,68,0.12)',borderColor:'#EF4444',borderWidth:2,pointBackgroundColor:'#EF4444',pointRadius:4},{label:'After Fix',data:[92,80,75,82,65],backgroundColor:'rgba(6,182,212,0.12)',borderColor:'#06B6D4',borderWidth:2,pointBackgroundColor:'#06B6D4',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{r:{beginAtZero:true,max:100,ticks:{color:'rgba(255,255,255,0.25)',font:{size:9},stepSize:25},grid:{color:'rgba(255,255,255,0.07)'},angleLines:{color:'rgba(255,255,255,0.07)'},pointLabels:{color:'rgba(255,255,255,0.65)',font:{family:'Inter',size:10,weight:'600'}}}},plugins:{legend:{labels:{color:'rgba(255,255,255,0.65)',font:{family:'Inter',size:11},padding:12,boxWidth:11}},tooltip:ttS()}}});
+  const dims=[{n:'Security',b:45,a:92,c:'#06B6D4'},{n:'Maintainability',b:72,a:80,c:'#7C3AED'},{n:'Performance',b:68,a:75,c:'#F59E0B'},{n:'Readability',b:80,a:82,c:'#22C55E'},{n:'Documentation',b:40,a:65,c:'#EF4444'}];
+  document.getElementById('radar-leg').innerHTML=dims.map(d=>`<div class="rli"><div class="rld" style="background:${d.c}"></div><div style="flex:1">${d.n}</div><div style="font-size:11px;color:var(--er)">${d.b}</div><div style="font-size:11px;color:var(--fa);margin:0 4px">→</div><div style="font-size:11px;color:var(--ok);font-weight:700">${d.a}</div></div>`).join('');
+}
+function renderRevSum(){
+  const items=[{i:'🔴',l:'Critical Issues',v:'1 fixed',c:'var(--er)'},{i:'🟡',l:'High Issues',v:'2 flagged',c:'var(--wa)'},{i:'🟢',l:'Auto-merged',v:'Yes',c:'var(--ok)'},{i:'⏱',l:'Review Time',v:'9.5s total',c:'var(--cy)'},{i:'📈',l:'Score Change',v:'63 → 92 (+29)',c:'var(--ok)'}];
+  document.getElementById('rev-sum').innerHTML=items.map(i=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--b)"><span>${i.i}</span><span style="flex:1;font-size:12px;color:var(--mu)">${i.l}</span><span style="font-size:12px;font-weight:700;color:${i.c}">${i.v}</span></div>`).join('');
+}
+
+// ════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════
+function initAnalCharts(){
+  const L30=Array.from({length:30},(_,i)=>`Jun ${i+1}`);
+  const L8=['Jun 1','Jun 5','Jun 9','Jun 13','Jun 17','Jun 21','Jun 25','Jun 30'];
+  if(CH.a1)CH.a1.destroy();
+  const c1=document.getElementById('ch-a1');
+  if(c1)CH.a1=new Chart(c1,{type:'line',data:{labels:L30,datasets:[{label:'Reviews',data:[3,5,4,7,6,8,5,9,7,10,8,12,9,11,8,13,10,14,11,12,9,15,12,14,11,16,13,15,12,14],borderColor:'#06B6D4',backgroundColor:'rgba(6,182,212,0.1)',borderWidth:2,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:'#06B6D4'}]},options:cOpts()});
+  if(CH.a2)CH.a2.destroy();
+  const c2=document.getElementById('ch-a2');
+  if(c2)CH.a2=new Chart(c2,{type:'bar',data:{labels:['SQL Inject','XSS','Hardcoded Keys','Memory Leak','N+1 Query','Dup Code','Complexity','Missing Docs'],datasets:[{label:'Issues',data:[23,18,12,34,28,41,15,67],backgroundColor:['#EF4444','#F59E0B','#EF4444','#06B6D4','#7C3AED','#F59E0B','#06B6D4','#22C55E'],borderRadius:5}]},options:{...cOpts(),indexAxis:'y'}});
+  if(CH.a3)CH.a3.destroy();
+  const c3=document.getElementById('ch-a3');
+  if(c3)CH.a3=new Chart(c3,{type:'line',data:{labels:L8,datasets:[{label:'Critical',data:[8,6,9,5,7,4,5,3],borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.1)',fill:true,tension:0.4,borderWidth:2,pointRadius:3,pointBackgroundColor:'#EF4444'},{label:'High',data:[14,12,15,11,13,10,12,9],borderColor:'#F59E0B',backgroundColor:'rgba(245,158,11,0.07)',fill:true,tension:0.4,borderWidth:2,pointRadius:3,pointBackgroundColor:'#F59E0B'},{label:'Medium',data:[22,20,24,19,21,18,20,17],borderColor:'#06B6D4',backgroundColor:'rgba(6,182,212,0.05)',fill:true,tension:0.4,borderWidth:2,pointRadius:3,pointBackgroundColor:'#06B6D4'}]},options:cOpts()});
+  if(CH.a4)CH.a4.destroy();
+  const c4=document.getElementById('ch-a4');
+  if(c4)CH.a4=new Chart(c4,{type:'line',data:{labels:L8,datasets:[{label:'Avg Score',data:[71,74,73,76,78,80,83,87],borderColor:'#22C55E',backgroundColor:'rgba(34,197,94,0.1)',fill:true,tension:0.4,borderWidth:2,pointRadius:4,pointBackgroundColor:'#22C55E'}]},options:cOpts()});
+  renderTeam();
+}
+function renderTeam(){
+  const stC={online:'var(--ok)',away:'var(--wa)',offline:'var(--fa)'};
+  document.getElementById('team-tbody').innerHTML=TEAM.map(m=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:9px"><div class="avs" style="width:30px;height:30px;font-size:10px">${m.init}</div><div><div style="font-weight:600;font-size:12.5px">${m.name}</div><div style="font-size:10.5px;color:var(--fa)">${m.role}</div></div></div></td>
+    <td><strong>${m.prs}</strong></td><td><strong>${m.fixed}</strong></td>
+    <td><span style="color:${m.score>=85?'var(--ok)':m.score>=75?'var(--cy)':'var(--wa)'};font-weight:700">${m.score}</span></td>
+    <td><span style="color:var(--ok)">${m.rate}</span></td>
+    <td><div class="spark">${m.act.map(h=>`<div class="spk" style="height:${(h/10)*22}px"></div>`).join('')}</div></td>
+    <td><div style="display:flex;align-items:center;gap:5px"><div style="width:6px;height:6px;border-radius:50%;background:${stC[m.status]}"></div><span style="font-size:11.5px;color:${stC[m.status]};text-transform:capitalize">${m.status}</span></div></td>
+  </tr>`).join('');
+}
+
+// ════════════════════════════════════════
+// NOTIFICATIONS
+// ════════════════════════════════════════
+function renderNotifs(filter='all'){
+  const icons={security:'🚨',success:'✅',info:'🔵',warning:'⚠️'};
+  const items=NOTIFS.filter(n=>filter==='all'||n.type===filter);
+  document.getElementById('nlist').innerHTML=items.map(n=>`
+    <div class="nit ${n.unread?'unread ':' '}${n.type}" onclick="markRead(${n.id},this)">
+      <div class="nico ${n.type}">${icons[n.type]}</div>
+      <div class="ncont"><div class="ntit">${n.title}</div><div class="ndes">${n.desc}</div><div class="ntm">${n.time}</div></div>
+      ${n.unread?'<div class="nudot"></div>':''}
+    </div>`).join('');
+  updNB();
+}
+function markRead(id,el){
+  const n=NOTIFS.find(x=>x.id===id);
+  if(n){n.unread=false;el.classList.remove('unread');el.querySelector('.nudot')?.remove();el.style.opacity='.72';}
+  updNB();
+}
+function markAllRead(){NOTIFS.forEach(n=>n.unread=false);renderNotifs(curNF);toast('ok','All Caught Up','All notifications marked as read.');}
+function fNotif(btn,f){
+  curNF=f;
+  btn.closest('.frow').querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');renderNotifs(f);
+}
+function updNB(){
+  const u=NOTIFS.filter(n=>n.unread).length;
+  const sub=document.getElementById('notif-sub');if(sub)sub.textContent=`${u} unread notification${u!==1?'s':''}`;
+  const nb=document.getElementById('nb-notif');if(nb){nb.textContent=u;nb.style.display=u?'':'none';}
+  const nd=document.querySelector('.ndot');if(nd)nd.style.display=u?'':'none';
+}
+
+// ════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════
+function renderAdmin(){
+  document.getElementById('rules-list').innerHTML=RULES.map((r,i)=>`
+    <div class="tglr"><div><div class="tgln">${r.name}</div><div class="tgld">${r.desc}</div></div>
+    <div class="tgl ${r.on?'on':''}" id="rtgl-${i}" onclick="toggleRule(${i})"></div></div>`).join('');
+  const THR=[
+    {n:'Critical Severity Block',v:7,max:10,k:'crit'},
+    {n:'Min Quality Score for Merge',v:80,max:100,k:'qual'},
+    {n:'Max Cyclomatic Complexity',v:10,max:30,k:'comp'},
+    {n:'Min Test Coverage (%)',v:80,max:100,k:'cov'},
+    {n:'Max Duplicate Code (%)',v:15,max:50,k:'dup'},
+  ];
+  document.getElementById('thr-list').innerHTML=THR.map(t=>`
+    <div class="thi"><div class="thh"><span style="color:var(--mu);font-size:12px">${t.n}</span><span class="thv" id="tv-${t.k}">${t.v}</span></div>
+    <input type="range" class="ths" min="0" max="${t.max}" value="${t.v}" oninput="document.getElementById('tv-${t.k}').textContent=this.value"></div>`).join('');
+  const USERS=[
+    {n:'Dev Varsha',i:'DV',e:'varsha@company.com',role:'Admin',s:'active'},
+    {n:'Alex Martinez',i:'AM',e:'alex@company.com',role:'Developer',s:'active'},
+    {n:'Sarah Kim',i:'SK',e:'sarah@company.com',role:'Lead',s:'active'},
+    {n:'James Liu',i:'JL',e:'james@company.com',role:'Developer',s:'active'},
+    {n:'Emma Wilson',i:'EW',e:'emma@company.com',role:'Junior Dev',s:'pending'},
+  ];
+  document.getElementById('users-tbody').innerHTML=USERS.map(u=>`<tr>
+    <td><div style="display:flex;align-items:center;gap:8px"><div class="avs">${u.i}</div><div><div style="font-size:12.5px;font-weight:600">${u.n}</div><div style="font-size:10.5px;color:var(--fa)">${u.e}</div></div></div></td>
+    <td><span class="badge cy">${u.role}</span></td>
+    <td><span class="badge ${u.s==='active'?'ok':'wa'}">${u.s}</span></td>
+    <td><div style="display:flex;gap:6px"><button class="btn btn-s sm">Edit</button><button class="btn btn-d sm">Remove</button></div></td>
+  </tr>`).join('');
+  const INTS=[
+    {icon:'🐙',n:'GitHub',s:'Connected · @dev-varsha · pr-insight-ai',on:true},
+    {icon:'🔵',n:'Jira',s:'Connected · PR Insight Project (PI)',on:true},
+    {icon:'💬',n:'Slack',s:'Connected · #code-reviews channel',on:true},
+    {icon:'🔶',n:'SonarQube',s:'Not connected · Click to configure',on:false},
+    {icon:'📊',n:'Datadog',s:'Connected · production environment',on:true},
+    {icon:'🔑',n:'1Password Secrets',s:'Connected · Vault: Engineering',on:true},
+  ];
+  document.getElementById('int-list').innerHTML=INTS.map(i=>`
+    <div class="inti"><div class="intic">${i.icon}</div>
+    <div style="flex:1"><div class="intn">${i.n}</div><div class="ints">${i.s}</div></div>
+    <button class="btn ${i.on?'btn-s':'btn-p'} sm">${i.on?'Configure':'Connect'}</button></div>`).join('');
+}
+function toggleRule(i){
+  RULES[i].on=!RULES[i].on;
+  document.getElementById('rtgl-'+i).className='tgl'+(RULES[i].on?' on':'');
+  toast('ok','Rule Updated',`${RULES[i].name} ${RULES[i].on?'enabled':'disabled'}.`);
+}
+
+// ════════════════════════════════════════
+// LIVE FEED
+// ════════════════════════════════════════
+function startLiveFeed(){
+  const msgs=[
+    {t:'ok',msg:'PR #248 review completed — Score 91/100',time:'just now'},
+    {t:'er',msg:'XSS pattern detected in frontend-platform #240',time:'just now'},
+    {t:'cy',msg:'Agent analyzing PR #249 (zero-trust)',time:'just now'},
+    {t:'wa',msg:'Coverage drop: infra-automation → 68%',time:'just now'},
+    {t:'ok',msg:'PR #244 auto-merged ✓',time:'just now'},
+  ];
+  let idx=0;
+  setInterval(()=>{
+    if(curPage==='dashboard'){
+      const feed=document.getElementById('act-feed');if(!feed)return;
+      const m=msgs[idx%msgs.length];
+      const el=document.createElement('div');el.className='afit';
+      el.innerHTML=`<div class="adot ${m.t}"></div><div class="act"><div class="att">${m.msg}</div><div class="atm">${m.time}</div></div>`;
+      feed.insertBefore(el,feed.firstChild);
+      if(feed.children.length>8)feed.removeChild(feed.lastChild);
+    }
+    idx++;
+  },5200);
+  const tmsgs=[
+    {t:'cy',title:'New PR Opened',msg:'PR #250 opened by Alex Martinez'},
+    {t:'ok',title:'Fix Applied',msg:'AI auto-fix applied to PR #248'},
+    {t:'wa',title:'Coverage Alert',msg:'mobile-sdk coverage below 80%'},
+    {t:'cy',title:'Dependency Alert',msg:'3 npm packages need security updates'},
+  ];
+  let ti=0;
+  setInterval(()=>{const m=tmsgs[ti%tmsgs.length];toast(m.t,m.title,m.msg);ti++;},22000);
+}
+
+// ════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════
+function toast(type,title,msg){
+  const icons={ok:'✅',er:'🚨',wa:'⚠️',cy:'ℹ️'};
+  const wrap=document.getElementById('tw');
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<div style="font-size:16px;flex-shrink:0">${icons[type]||'ℹ️'}</div><div><div class="tst">${title}</div><div class="tsm">${msg}</div></div>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{el.style.transition='all .3s';el.style.opacity='0';el.style.transform='translateX(40px)';setTimeout(()=>el.remove(),300);},4500);
+}
+
+// ════════════════════════════════════════
+// CHART HELPERS
+// ════════════════════════════════════════
+function cOpts(){
+  return{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{labels:{color:'rgba(255,255,255,0.65)',font:{family:'Inter',size:11},padding:12}},tooltip:ttS()},scales:{x:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'Inter',size:10},maxRotation:0,maxTicksLimit:8},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'Inter',size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}};
+}
+function ttS(){return{backgroundColor:'#16203A',borderColor:'rgba(6,182,212,0.3)',borderWidth:1,titleColor:'#FFFFFF',bodyColor:'rgba(255,255,255,0.7)',padding:10,cornerRadius:8,titleFont:{family:'Inter',weight:'700'},bodyFont:{family:'Inter'}};}
+Chart.defaults.font.family='Inter';
+Chart.defaults.color='rgba(255,255,255,0.6)';
+</script>
+</body>
+</html>
