@@ -15,7 +15,7 @@ from codedog.utils.langchain_utils import load_model_by_name
 from codedog.config.settings import settings
 from codedog.utils.email_utils import send_report_email
 from langchain_community.callbacks.manager import get_openai_callback
-
+# test comment
 # Config logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
