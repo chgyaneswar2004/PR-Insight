@@ -31,8 +31,78 @@ export function createWebhookRouter(io) {
     }
 
     const eventName = req.headers['x-github-event'];
+    
+    // Handle push events (to automatically create PRs)
+    if (eventName === 'push') {
+      const { ref, repository, deleted } = req.body;
+      if (!ref || !repository) {
+        return res.status(400).json({ error: 'Invalid push payload' });
+      }
+
+      const defaultBranch = repository.default_branch || 'main';
+      const defaultBranchRef = `refs/heads/${defaultBranch}`;
+
+      // Ignore pushes to default branch or branch deletion
+      if (ref === defaultBranchRef || deleted) {
+        return res.json({ message: 'Push ignored (default branch or branch deletion)' });
+      }
+
+      const branchName = ref.replace('refs/heads/', '');
+      const repoFullName = repository.full_name;
+      const token = process.env.GITHUB_TOKEN;
+
+      if (!token) {
+        console.error('Error: GITHUB_TOKEN is not configured in environment');
+        return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
+      }
+
+      console.log(`[Push Webhook] Processing push to branch '${branchName}' in repository '${repoFullName}'...`);
+
+      try {
+        const response = await fetch(`https://api.github.com/repos/${repoFullName}/pulls`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`,
+            'X-GitHub-API-Version': '2022-11-28',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: `Auto PR: Review of ${branchName}`,
+            head: branchName,
+            base: defaultBranch,
+            body: `This Pull Request was automatically created by PR-Insight in response to a branch push event.`,
+            draft: false
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 201) {
+          console.log(`[Push Webhook] Automatically created PR #${data.number} for branch '${branchName}'`);
+          return res.json({ message: 'PR automatically created', prNumber: data.number, prUrl: data.html_url });
+        } else if (response.status === 422) {
+          // GitHub API returns 422 if PR already exists
+          const errorMsg = data.errors?.[0]?.message || '';
+          if (errorMsg.includes('A pull request already exists') || errorMsg.includes('already exists')) {
+            console.log(`[Push Webhook] PR already exists for branch '${branchName}', skipping creation.`);
+            return res.json({ message: 'PR already exists, skipping creation' });
+          }
+          console.warn(`[Push Webhook] Failed to create PR (422):`, data);
+          return res.status(422).json({ error: data });
+        } else {
+          console.error(`[Push Webhook] GitHub API error (${response.status}):`, data);
+          return res.status(response.status).json({ error: data });
+        }
+      } catch (err) {
+        console.error('[Push Webhook] Error calling GitHub API:', err);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    // Handle pull request events (standard CodeWatch review path)
     if (eventName !== 'pull_request') {
-      return res.json({ message: 'Event ignored (only pull_request is handled)' });
+      return res.json({ message: `Event '${eventName}' ignored (only push and pull_request are handled)` });
     }
 
     const { action, pull_request, repository } = req.body;
