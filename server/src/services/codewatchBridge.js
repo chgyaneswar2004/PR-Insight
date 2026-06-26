@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as db from '../db/client.js';
-
+// test
 const AGENT_STEPS = [
   { id: 'PULL_PR', label: 'Fetching PR', description: 'Pulling pull request data and file changes from GitHub' },
   { id: 'ANALYZE_FILES', label: 'Analyzing Files', description: 'Processing changed files and calculating diffs' },
@@ -9,7 +9,7 @@ const AGENT_STEPS = [
   { id: 'SAVE_RESULT', label: 'Saving Results', description: 'Persisting review results to PostgreSQL database' }
 ];
 
-export async function triggerCodeWatchReview(repoFullName, prNumber, prUUID = null, io = null, sessionId = null) {
+export async function triggerCodeWatchReview(repoFullName, prNumber, prUUID = null, io = null, sessionId = null, userId = null, credentials = null) {
   const CODEWATCH_API_URL = process.env.CODEWATCH_API_URL || 'http://127.0.0.1:8000';
   if (!sessionId) sessionId = uuidv4();
   
@@ -53,7 +53,11 @@ export async function triggerCodeWatchReview(repoFullName, prNumber, prUUID = nu
     const response = await fetch(`${CODEWATCH_API_URL}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo: repoFullName, pr_number: parseInt(prNumber) }),
+      body: JSON.stringify({ 
+        repo: repoFullName, 
+        pr_number: parseInt(prNumber),
+        credentials
+      }),
     });
 
     if (!response.ok) {
@@ -77,7 +81,7 @@ export async function triggerCodeWatchReview(repoFullName, prNumber, prUUID = nu
     addLog('info', `Writing review details to PostgreSQL...`, 'SAVE_RESULT');
 
     // Persist to PostgreSQL database
-    const savedReview = await persistReviewResult(reviewData, prUUID);
+    const savedReview = await persistReviewResult(reviewData, prUUID, userId);
     
     emit('agent:step_complete', { stepId: 'SAVE_RESULT', stepIndex: 4, duration: 800 });
     addLog('success', `✓ Review results persisted to postgres database`, 'SAVE_RESULT');
@@ -96,28 +100,28 @@ export async function triggerCodeWatchReview(repoFullName, prNumber, prUUID = nu
   }
 }
 
-async function persistReviewResult(data, prUUID = null) {
+async function persistReviewResult(data, prUUID = null, userId = null) {
   // 1. Find or insert Repository
   let repoId;
   const repoName = data.repo_full_name.split('/')[1] || data.repo_full_name;
   
   const repoRes = await db.query(
-    'SELECT id FROM repositories WHERE full_name = $1',
-    [data.repo_full_name]
+    'SELECT id FROM repositories WHERE full_name = $1 AND user_id = $2',
+    [data.repo_full_name, userId]
   );
 
   if (repoRes.rows.length > 0) {
     repoId = repoRes.rows[0].id;
     // Update repository stats
     await db.query(
-      'UPDATE repositories SET quality_score = $1, security_issues = $2, updated_at = NOW() WHERE id = $3',
-      [Math.round(data.overall_score), data.security_issues.length, repoId]
+      'UPDATE repositories SET quality_score = $1, security_issues = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4',
+      [Math.round(data.overall_score), data.security_issues.length, repoId, userId]
     );
   } else {
     const insertRepoRes = await db.query(
-      `INSERT INTO repositories (name, full_name, quality_score, security_issues, visibility, created_at, updated_at) 
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id`,
-      [repoName, data.repo_full_name, Math.round(data.overall_score), data.security_issues.length, 'private']
+      `INSERT INTO repositories (name, full_name, quality_score, security_issues, visibility, user_id, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING id`,
+      [repoName, data.repo_full_name, Math.round(data.overall_score), data.security_issues.length, 'private', userId]
     );
     repoId = insertRepoRes.rows[0].id;
   }
@@ -127,30 +131,29 @@ async function persistReviewResult(data, prUUID = null) {
   const authorDisplayName = data.author?.name || authorUsername;
   const authorAvatarUrl = data.author?.avatar || null;
 
-  const devRes = await db.query('SELECT id, total_prs, avg_score FROM developers WHERE username = $1', [authorUsername]);
+  const devRes = await db.query('SELECT id, total_prs, avg_score FROM developers WHERE username = $1 AND user_id = $2', [authorUsername, userId]);
   if (devRes.rows.length > 0) {
     const dev = devRes.rows[0];
     const newTotal = (dev.total_prs || 0) + 1;
     const newAvg = ((parseFloat(dev.avg_score || '0') * dev.total_prs) + data.overall_score) / newTotal;
     
     await db.query(
-      'UPDATE developers SET total_prs = $1, avg_score = $2, last_active = NOW() WHERE id = $3',
-      [newTotal, newAvg, dev.id]
+      'UPDATE developers SET total_prs = $1, avg_score = $2, last_active = NOW() WHERE id = $3 AND user_id = $4',
+      [newTotal, newAvg, dev.id, userId]
     );
   } else {
     await db.query(
-      `INSERT INTO developers (username, display_name, avatar_url, total_prs, avg_score, last_active) 
-       VALUES ($1, $2, $3, 1, $4, NOW())`,
-      [authorUsername, authorDisplayName, authorAvatarUrl, data.overall_score]
+      `INSERT INTO developers (username, display_name, avatar_url, total_prs, avg_score, user_id, last_active) 
+       VALUES ($1, $2, $3, 1, $4, $5, NOW())`,
+      [authorUsername, authorDisplayName, authorAvatarUrl, data.overall_score, userId]
     );
   }
 
   // 3. Find or insert/update Pull Request
   if (!prUUID) {
-    // If we didn't receive a specific UUID, check if one exists in the database
     const prRes = await db.query(
-      'SELECT id FROM pull_requests WHERE repo_id = $1 AND number = $2',
-      [repoId, data.pr_number]
+      'SELECT id FROM pull_requests WHERE repo_id = $1 AND number = $2 AND user_id = $3',
+      [repoId, data.pr_number, userId]
     );
     if (prRes.rows.length > 0) {
       prUUID = prRes.rows[0].id;
@@ -162,7 +165,7 @@ async function persistReviewResult(data, prUUID = null) {
       `UPDATE pull_requests 
        SET title = $1, author = $2, status = 'reviewed', files = $3, additions = $4, deletions = $5,
            quality_score = $6, has_review = true, overall_score = $7, updated_at = NOW(), reviewed_at = NOW() 
-       WHERE id = $8`,
+       WHERE id = $8 AND user_id = $9`,
       [
         data.title, 
         JSON.stringify(data.author || { login: authorUsername, avatar: authorAvatarUrl }),
@@ -171,14 +174,15 @@ async function persistReviewResult(data, prUUID = null) {
         data.deletions || 0,
         Math.round(data.overall_score),
         data.overall_score,
-        prUUID
+        prUUID,
+        userId
       ]
     );
   } else {
     const insertPrRes = await db.query(
       `INSERT INTO pull_requests 
-       (repo_id, number, title, author, status, files, additions, deletions, quality_score, has_review, overall_score, created_at, updated_at, reviewed_at) 
-       VALUES ($1, $2, $3, $4, 'reviewed', $5, $6, $7, $8, true, $9, NOW(), NOW(), NOW()) RETURNING id`,
+       (repo_id, number, title, author, status, files, additions, deletions, quality_score, has_review, overall_score, user_id, created_at, updated_at, reviewed_at) 
+       VALUES ($1, $2, $3, $4, 'reviewed', $5, $6, $7, $8, true, $9, $10, NOW(), NOW(), NOW()) RETURNING id`,
       [
         repoId,
         data.pr_number,
@@ -188,14 +192,15 @@ async function persistReviewResult(data, prUUID = null) {
         data.additions || 0,
         data.deletions || 0,
         Math.round(data.overall_score),
-        data.overall_score
+        data.overall_score,
+        userId
       ]
     );
     prUUID = insertPrRes.rows[0].id;
   }
 
   // 4. Delete existing review for this PR if it exists, to overwrite with latest
-  await db.query('DELETE FROM reviews WHERE pr_id = $1', [prUUID]);
+  await db.query('DELETE FROM reviews WHERE pr_id = $1 AND user_id = $2', [prUUID, userId]);
 
   // 5. Insert Review Result
   const reviewInsertRes = await db.query(
@@ -203,8 +208,8 @@ async function persistReviewResult(data, prUUID = null) {
       pr_id, summary, security_score, quality_score, performance_score, 
       maintainability_score, readability_score, docs_score, 
       security_issues, quality_issues, performance_issues, suggestions, 
-      diff_data, raw_markdown, created_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW()) RETURNING *`,
+      diff_data, raw_markdown, user_id, created_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW()) RETURNING *`,
     [
       prUUID,
       data.summary,
@@ -219,7 +224,8 @@ async function persistReviewResult(data, prUUID = null) {
       JSON.stringify(data.performance_issues || []),
       JSON.stringify(data.doc_suggestions || []),
       JSON.stringify(data.diff_data || null),
-      data.raw_markdown || ''
+      data.raw_markdown || '',
+      userId
     ]
   );
 
@@ -229,8 +235,8 @@ async function persistReviewResult(data, prUUID = null) {
   const notificationTitle = `Review Complete: PR #${data.pr_number}`;
   const notificationMessage = `AI review completed for ${repoName} PR #${data.pr_number}. Score: ${Math.round(data.overall_score)}/100`;
   await db.query(
-    "INSERT INTO notifications (type, title, message, pr_id, is_read, created_at) VALUES ($1, $2, $3, $4, FALSE, NOW())",
-    ['pr_reviewed', notificationTitle, notificationMessage, prUUID]
+    "INSERT INTO notifications (type, title, message, pr_id, is_read, user_id, created_at) VALUES ($1, $2, $3, $4, FALSE, $5, NOW())",
+    ['pr_reviewed', notificationTitle, notificationMessage, prUUID, userId]
   );
 
   // Return mapped review formatting
