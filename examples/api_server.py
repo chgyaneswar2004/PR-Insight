@@ -18,7 +18,7 @@ from langchain_community.callbacks.manager import get_openai_callback
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Config logging
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ def get_llm_clients(credentials: dict):
         
         # Gemini for summaries — lightweight, high volume
         summary_llm = ChatGoogleGenerativeAI(
-            model=credentials.get("CODE_SUMMARY_MODEL") or os.environ.get("CODE_SUMMARY_MODEL", "gemini-2.0-flash-lite"),
+            model=credentials.get("CODE_SUMMARY_MODEL") or os.environ.get("CODE_SUMMARY_MODEL", "gemini-3.1-flash-lite"),
             google_api_key=gemini_key,
             temperature=0
         )
