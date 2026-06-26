@@ -15,16 +15,21 @@ from codedog.utils.langchain_utils import load_model_by_name
 from codedog.config.settings import settings
 from codedog.utils.email_utils import send_report_email
 from langchain_community.callbacks.manager import get_openai_callback
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Config logging
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+from typing import Optional, Dict
+
 class ReviewRequest(BaseModel):
     repo: str
     pr_number: int
+    credentials: Optional[Dict[str, str]] = None
 
 def extract_issues(code_reviews):
     security_issues = []
@@ -104,11 +109,68 @@ def extract_diff_data(code_reviews):
             }
     return None
 
+def get_llm_clients(credentials: dict):
+    tier = credentials.get("LLM_TIER") or os.environ.get("LLM_TIER", "free")
+    
+    # Check if THROTTLE_ENABLED is in credentials, else environment
+    throttle_val = credentials.get("THROTTLE_ENABLED")
+    if throttle_val is None:
+        throttle_val = os.environ.get("THROTTLE_ENABLED", "true")
+    throttle = throttle_val == "true"
+
+    if tier == "free":
+        gemini_key = credentials.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        nvidia_key = credentials.get("NVIDIA_API_KEY") or os.environ.get("NVIDIA_API_KEY")
+        
+        # Gemini for summaries — lightweight, high volume
+        summary_llm = ChatGoogleGenerativeAI(
+            model=credentials.get("CODE_SUMMARY_MODEL") or os.environ.get("CODE_SUMMARY_MODEL", "gemini-3.1-flash-lite"),
+            google_api_key=gemini_key,
+            temperature=0
+        )
+
+        # NVIDIA NIM for code review — heavy, low volume
+        review_llm = ChatOpenAI(
+            model=credentials.get("CODE_REVIEW_MODEL") or os.environ.get("CODE_REVIEW_MODEL", "meta/llama-3.1-70b-instruct"),
+            openai_api_key=nvidia_key,
+            openai_api_base="https://integrate.api.nvidia.com/v1",
+            temperature=0,
+            max_retries=10
+        )
+
+        return summary_llm, review_llm, throttle
+
+    else:  # paid tier — single provider for everything
+        api_key = credentials.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        api_base = credentials.get("OPENAI_API_BASE") or os.environ.get("OPENAI_API_BASE")
+        model = credentials.get("CODE_REVIEW_MODEL") or os.environ.get("CODE_REVIEW_MODEL")
+        
+        if api_base and "deepseek" in api_base:
+            from codedog.utils.langchain_utils import DeepSeekChatModel
+            single_llm = DeepSeekChatModel(
+                api_key=api_key,
+                model_name=model,
+                api_base=api_base,
+                temperature=0.0,
+                max_tokens=4096,
+                top_p=0.95
+            )
+        else:
+            single_llm = ChatOpenAI(
+                model=model,
+                openai_api_key=api_key,
+                openai_api_base=api_base,
+                temperature=0
+            )
+        return single_llm, single_llm, False  # same LLM, no throttle
+
+
 @app.post("/review")
 async def review_pr(request: ReviewRequest):
-    github_token = settings.github_token
+    credentials = request.credentials or {}
+    github_token = credentials.get("GITHUB_TOKEN") or settings.github_token
     if not github_token:
-        raise HTTPException(status_code=500, detail="GITHUB_TOKEN environment variable is not configured.")
+        raise HTTPException(status_code=500, detail="GITHUB_TOKEN variable is not configured.")
 
     logger.info(f"Received review request for repository: {request.repo}, PR: #{request.pr_number}")
     
@@ -122,11 +184,24 @@ async def review_pr(request: ReviewRequest):
         
         pull_request = retriever.pull_request
         
+        # Get LLM clients and throttle configuration based on user tier credentials
+        summary_llm, review_llm, throttle = get_llm_clients(credentials)
+        
         summary_chain = PRSummaryChain.from_llm(
-            code_summary_llm=load_model_by_name(settings.code_summary_model),
-            pr_summary_llm=load_model_by_name(settings.pr_summary_model)
+            code_summary_llm=summary_llm,
+            pr_summary_llm=summary_llm,
+            verbose=True
         )
-        review_chain = CodeReviewChain.from_llm(llm=load_model_by_name(settings.code_review_model))
+        review_chain = CodeReviewChain.from_llm(
+            llm=review_llm,
+            verbose=True
+        )
+
+        # Set or remove the throttle environment variable
+        if throttle:
+            os.environ["CODEDOG_THROTTLE"] = "true"
+        else:
+            os.environ.pop("CODEDOG_THROTTLE", None)
         
         with get_openai_callback() as cb:
             summary_result = await summary_chain.ainvoke({"pull_request": pull_request})
@@ -175,8 +250,11 @@ async def review_pr(request: ReviewRequest):
             deletions = sum(cf.diff_content.remove_count for cf in pull_request.change_files if cf.diff_content) if pull_request.change_files else 0
 
             # Send email report if configured
-            if settings.email_enabled and settings.notification_emails:
-                email_addresses = [email.strip() for email in settings.notification_emails.split(",") if email.strip()]
+            email_enabled = credentials.get("EMAIL_ENABLED") == "true" if "EMAIL_ENABLED" in credentials else settings.email_enabled
+            notification_emails = credentials.get("NOTIFICATION_EMAILS") or settings.notification_emails
+            
+            if email_enabled and notification_emails:
+                email_addresses = [email.strip() for email in notification_emails.split(",") if email.strip()]
                 if email_addresses:
                     logger.info(f"Sending PR review report email to {', '.join(email_addresses)}")
                     subject = f"[CodeDog Review] PR #{request.pr_number} Review: {pull_request.title}"
@@ -186,6 +264,7 @@ async def review_pr(request: ReviewRequest):
                             to_emails=email_addresses,
                             subject=subject,
                             markdown_content=raw_markdown,
+                            credentials=credentials
                         )
                         logger.info("PR review report email sent successfully.")
                     except Exception as e:

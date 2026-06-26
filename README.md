@@ -124,7 +124,7 @@ SMTP_PASSWORD="your_app_password"  # For Gmail, you must use an App Password, se
 
 ## Running the Example (Quickstart)
 
-The `README.md` in the project root (and `codedog/__init__.py`) contains a quickstart Python script demonstrating the core workflow.
+The `README.md` in the project root (and `codedog/__init__.py`) contains a Python script demonstrating the core workflow.
 
 1.  **Save the Quickstart Code**: Copy the Python code from the quickstart section into a file, e.g., `run_codedog.py`.
 
@@ -203,3 +203,5 @@ Contributions are welcome! Please refer to the project's contribution guidelines
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+\ n #   N g r o k   T e s t  
+ 

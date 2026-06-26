@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
 
-
 @pytest.fixture
 def mock_pull_request():
     """Create a mock PullRequest object for testing."""
