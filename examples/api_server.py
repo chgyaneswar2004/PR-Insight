@@ -5,7 +5,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from github import Github
-# hi
+
 from codedog.retrievers.github_retriever import GithubRetriever
 from codedog.chains.pr_summary.base import PRSummaryChain
 from codedog.chains.code_review.base import CodeReviewChain
