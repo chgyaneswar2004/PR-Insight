@@ -15,7 +15,7 @@ def mock_pull_request():
     mock_pr.json.return_value = "{}"
     return mock_pr
 
-# testing
+
 @pytest.fixture
 def mock_llm():
     """Create a mock LLM for testing."""
