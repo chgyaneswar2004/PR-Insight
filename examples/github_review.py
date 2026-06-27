@@ -6,14 +6,14 @@ import openai
 from github import Github
 from langchain_community.callbacks.manager import get_openai_callback
 
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.chains import CodeReviewChain, PRSummaryChain
-from codedog.retrievers import GithubRetriever
-from codedog.utils.langchain_utils import load_gpt4_llm, load_gpt_llm
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.chains import CodeReviewChain, PRSummaryChain
+from codewatch.retrievers import GithubRetriever
+from codewatch.utils.langchain_utils import load_gpt4_llm, load_gpt_llm
 
 github_token = env.get("GITHUB_TOKEN", "")
 gh = Github(github_token)
-retriever = GithubRetriever(gh, "codedog-ai/codedog", 2)
+retriever = GithubRetriever(gh, "codewatch-ai/codewatch", 2)
 # retriever = GithubRetriever(gh, "langchain-ai/langchain", 8171)
 # retriever = GithubRetriever(gh, "ClickHouse/ClickHouse", 49113)
 

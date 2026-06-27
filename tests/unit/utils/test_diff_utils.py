@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from codedog.utils.diff_utils import parse_diff, parse_patch_file
+from codewatch.utils.diff_utils import parse_diff, parse_patch_file
 
 
 class TestDiffUtils(unittest.TestCase):

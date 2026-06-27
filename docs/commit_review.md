@@ -1,6 +1,6 @@
 # Automatic Commit Code Review
 
-CodeDog can automatically review your code commits and send the review results via email. This guide explains how to set up and use this feature.
+CodeWatch can automatically review your code commits and send the review results via email. This guide explains how to set up and use this feature.
 
 ## Setup
 
@@ -9,7 +9,7 @@ CodeDog can automatically review your code commits and send the review results v
    Run the following command to set up the git hooks that will trigger automatic code reviews when you make commits:
 
    ```bash
-   python run_codedog.py setup-hooks
+   python run_codewatch.py setup-hooks
    ```
 
    This will install a post-commit hook in your repository's `.git/hooks` directory.
@@ -52,12 +52,12 @@ CodeDog can automatically review your code commits and send the review results v
 ## How It Works
 
 1. When you make a commit, the post-commit hook automatically runs.
-2. The hook executes `run_codedog_commit.py` with your commit hash.
+2. The hook executes `run_codewatch_commit.py` with your commit hash.
 3. The script:
    - Retrieves information about your commit
    - Analyzes the code changes
    - Generates a summary and review
-   - Saves the review to a file named `codedog_commit_<commit_hash>.md`
+   - Saves the review to a file named `codewatch_commit_<commit_hash>.md`
    - Sends the review via email to the configured address(es)
 
 ## Manual Execution
@@ -65,7 +65,7 @@ CodeDog can automatically review your code commits and send the review results v
 You can also manually run the commit review script:
 
 ```bash
-python run_codedog_commit.py --commit <commit-hash> --verbose
+python run_codewatch_commit.py --commit <commit-hash> --verbose
 ```
 
 ### Command-line Options
@@ -73,7 +73,7 @@ python run_codedog_commit.py --commit <commit-hash> --verbose
 - `--commit`: Specify the commit hash to review (defaults to HEAD)
 - `--repo`: Path to git repository (defaults to current directory)
 - `--email`: Email addresses to send the report to (comma-separated)
-- `--output`: Output file path (defaults to codedog_commit_<hash>.md)
+- `--output`: Output file path (defaults to codewatch_commit_<hash>.md)
 - `--model`: Model to use for code review
 - `--summary-model`: Model to use for PR summary
 - `--verbose`: Enable verbose output

@@ -1,6 +1,6 @@
 # Email Notification Setup Guide
 
-CodeDog can send code review and evaluation reports via email. This guide will help you set up email notifications correctly, with specific instructions for Gmail users.
+CodeWatch can send code review and evaluation reports via email. This guide will help you set up email notifications correctly, with specific instructions for Gmail users.
 
 ## Configuration Steps
 
@@ -76,13 +76,13 @@ For enhanced security, you can set the SMTP password as an environment variable 
 
 ```bash
 # Linux/macOS
-export CODEDOG_SMTP_PASSWORD="your_app_password"
+export CODEWATCH_SMTP_PASSWORD="your_app_password"
 
 # Windows (CMD)
-set CODEDOG_SMTP_PASSWORD="your_app_password"
+set CODEWATCH_SMTP_PASSWORD="your_app_password"
 
 # Windows (PowerShell)
-$env:CODEDOG_SMTP_PASSWORD="your_app_password"
+$env:CODEWATCH_SMTP_PASSWORD="your_app_password"
 ```
 
-The program will check for `CODEDOG_SMTP_PASSWORD` environment variable before using the value in the `.env` file. 
+The program will check for `CODEWATCH_SMTP_PASSWORD` environment variable before using the value in the `.env` file. 

@@ -1,12 +1,12 @@
-# CodeWatch (CodeDog) Codebase Audit & Architectural Review
+# CodeWatch (CodeWatch) Codebase Audit & Architectural Review
 
-This document contains a staff-engineer level architectural review, security and performance audit, and actionable refactoring plan for the CodeWatch/CodeDog project.
+This document contains a staff-engineer level architectural review, security and performance audit, and actionable refactoring plan for the CodeWatch/CodeWatch project.
 
 ---
 
 ## Executive Summary
 
-**CodeWatch (CodeDog)** is a modular, AI-powered code review and developer code evaluation tool. It automates reviewing Pull Requests/Merge Requests (GitHub, GitLab) or individual commits (local or remote), generates structured markdown reviews with score tables, and emails them.
+**CodeWatch (CodeWatch)** is a modular, AI-powered code review and developer code evaluation tool. It automates reviewing Pull Requests/Merge Requests (GitHub, GitLab) or individual commits (local or remote), generates structured markdown reviews with score tables, and emails them.
 
 While the project has a well-designed modular core using Pydantic models for data representation and LangChain for LLM orchestration, it has several technical debts, security vulnerabilities, and reliability issues.
 
@@ -52,7 +52,7 @@ graph TD
 We break down the major components below:
 
 ### 1. `GithubRetriever` & `GitlabRetriever`
-- **Files**: [github_retriever.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/retrievers/github_retriever.py), [gitlab_retriever.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/retrievers/gitlab_retriever.py)
+- **Files**: [github_retriever.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/retrievers/github_retriever.py), [gitlab_retriever.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/retrievers/gitlab_retriever.py)
 - **Purpose**: Retrieve repository metadata, PR/MR objects, file changes, diff contents, and associated issue details.
 - **Inputs**: PyGithub/python-gitlab client instances, repository name/id, PR/MR number.
 - **Outputs**: Agnostic Pydantic models: `PullRequest`, `Repository`, `ChangeFile`, `Issue`.
@@ -63,12 +63,12 @@ We break down the major components below:
 - **Complexity**: High (Must handle API discrepancies between GitHub/GitLab, paginated responses, and raw diff parsing using unidiff).
 - **Reusability Score**: 8/10.
 - **Potential Issues**:
-  - GitLab retriever list diff limit is hardcoded to 200 ([gitlab_retriever.py:L28](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/retrievers/gitlab_retriever.py#L28)). Large PRs will truncate without notice.
+  - GitLab retriever list diff limit is hardcoded to 200 ([gitlab_retriever.py:L28](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/retrievers/gitlab_retriever.py#L28)). Large PRs will truncate without notice.
   - Exception handling is generic; API rate-limits or invalid authentication credentials will crash the retrievers.
 - **Suggested Refactors**: Implement pagination for GitLab diffs and standard exception handlers for HTTP 403 (Rate Limit) or HTTP 401 (Unauthorized) errors.
 
 ### 2. `PullRequestProcessor`
-- **File**: [pull_request_processor.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/processors/pull_request_processor.py)
+- **File**: [pull_request_processor.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/processors/pull_request_processor.py)
 - **Purpose**: Process `PullRequest` data and generate text "materials" to inject into LLM prompts.
 - **Inputs**: `PullRequest`, lists of `ChangeFile` or `ChangeSummary` objects.
 - **Outputs**: Formatted prompt material strings.
@@ -78,11 +78,11 @@ We break down the major components below:
 - **Complexity**: Low.
 - **Reusability Score**: 9/10.
 - **Potential Issues**:
-  - `SUPPORT_CODE_FILE_SUFFIX` is hardcoded to `["py", "java", "go", "js", "ts", "php", "c", "cpp", "h", "cs", "rs"]` ([pull_request_processor.py:L12](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/processors/pull_request_processor.py#L12)). If a developer writes Rust (`.rs`), Go (`.go`), or other languages not explicitly covered, they cannot customize this extension list without modifying the library source code.
+  - `SUPPORT_CODE_FILE_SUFFIX` is hardcoded to `["py", "java", "go", "js", "ts", "php", "c", "cpp", "h", "cs", "rs"]` ([pull_request_processor.py:L12](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/processors/pull_request_processor.py#L12)). If a developer writes Rust (`.rs`), Go (`.go`), or other languages not explicitly covered, they cannot customize this extension list without modifying the library source code.
 - **Suggested Refactors**: Make file type extensions configurable via `.env` or initialization parameters.
 
 ### 3. `PRSummaryChain` & `CodeReviewChain`
-- **Files**: [pr_summary/base.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains/pr_summary/base.py), [code_review/base.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains/code_review/base.py)
+- **Files**: [pr_summary/base.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains/pr_summary/base.py), [code_review/base.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains/code_review/base.py)
 - **Purpose**: Orchestrate LangChain chains to summarize file-level changes, overall PR summaries, and write code suggestions.
 - **Inputs**: `PullRequest`.
 - **Outputs**: Mapped Pydantic summaries (`PRSummary`, `ChangeSummary`, `CodeReview`).
@@ -92,11 +92,11 @@ We break down the major components below:
 - **Reusability Score**: 7/10.
 - **Potential Issues**:
   - Deprecated subclassing of `Chain` and usage of `LLMChain` which triggers Pydantic v1 shim warnings on modern LangChain versions.
-  - In `PRSummaryChain._aprocess_result` ([base.py:L175-183](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains/pr_summary/base.py#L175-183)), the return format is inconsistent with sync methods. It returns `{"pr_summary": raw_output_text, ...}` which is a string instead of a `PRSummary` object, resulting in a type mismatch.
+  - In `PRSummaryChain._aprocess_result` ([base.py:L175-183](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains/pr_summary/base.py#L175-183)), the return format is inconsistent with sync methods. It returns `{"pr_summary": raw_output_text, ...}` which is a string instead of a `PRSummary` object, resulting in a type mismatch.
 - **Suggested Refactors**: Migrate chains to LangChain Expression Language (LCEL) and ensure async results are correctly parsed into `PRSummary` models.
 
 ### 4. `CodeReviewMarkdownReporter`
-- **File**: [code_review.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/actors/reporters/code_review.py)
+- **File**: [code_review.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/actors/reporters/code_review.py)
 - **Purpose**: Generate the review report in Markdown, including extracting and averaging dimensional scores.
 - **Inputs**: `list[CodeReview]`.
 - **Outputs**: Markdown string.
@@ -105,11 +105,11 @@ We break down the major components below:
 - **Complexity**: Medium.
 - **Reusability Score**: 8/10.
 - **Potential Issues**:
-  - Score extraction depends on regex parsing of unstructured LLM outputs ([code_review.py:L24-111](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/actors/reporters/code_review.py#L24-L111)). If the model varies its spacing or markdown formatting slightly, the score parser fails and returns `0`, breaking the average calculation.
+  - Score extraction depends on regex parsing of unstructured LLM outputs ([code_review.py:L24-111](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/actors/reporters/code_review.py#L24-L111)). If the model varies its spacing or markdown formatting slightly, the score parser fails and returns `0`, breaking the average calculation.
 - **Suggested Refactors**: Use structured output models or JSON mode for the code reviews to enforce schema validation at the API level instead of post-hoc regex parsing.
 
 ### 5. `DeepSeekChatModel` & `DeepSeekR1Model`
-- **File**: [langchain_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/utils/langchain_utils.py)
+- **File**: [langchain_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/utils/langchain_utils.py)
 - **Purpose**: Custom LangChain BaseChatModel wrappers for DeepSeek APIs, introducing exponential backoff and retry handling.
 - **Inputs**: List of `BaseMessage`.
 - **Outputs**: `ChatResult`.
@@ -118,7 +118,7 @@ We break down the major components below:
 - **Complexity**: Medium-High.
 - **Reusability Score**: 9/10.
 - **Potential Issues**:
-  - Synchronous `_generate` uses `requests.post` and does not implement retries or backoff, while `_agenerate` does ([langchain_utils.py:L70-152](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/utils/langchain_utils.py#L70-L152)).
+  - Synchronous `_generate` uses `requests.post` and does not implement retries or backoff, while `_agenerate` does ([langchain_utils.py:L70-152](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/utils/langchain_utils.py#L70-L152)).
   - Hardcoded pricing formula ($0.0001 per token) is inaccurate and doesn't separate input and output tokens.
 - **Suggested Refactors**: Apply retry logic to the synchronous generator and align token pricing with DeepSeek's official API specifications.
 
@@ -133,7 +133,7 @@ CodeWatch is a command-line application and headless backend system; it does not
 ### Evaluation of Presentation Layer
 - **Aesthetic Quality**: The generated reports are cleanly structured but simple. They lack modern layout enhancements such as collapsible sections for secondary details or stylized tables.
 - **Accessibility**: The generated markdown lacks proper semantic alt tags for embedded links or warning blocks.
-- **Separation of Concerns**: Output templates are mixed directly with structural logic inside [template_en.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/templates/template_en.py) and [template_cn.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/templates/template_cn.py).
+- **Separation of Concerns**: Output templates are mixed directly with structural logic inside [template_en.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/templates/template_en.py) and [template_cn.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/templates/template_cn.py).
 
 ---
 
@@ -167,7 +167,7 @@ CodeWatch is a command-line application and headless backend system; it does not
 | **Exposure of Webhook API Without Verification**: No signature verification for incoming payloads from GitHub/GitLab. | **High** | [github_server.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/examples/github_server.py), [gitlab_server.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/examples/gitlab_server.py) | Validate signatures using a shared webhook secret (`X-Hub-Signature-256`). |
 | **Insecure Credentials Loading**: Default values or placeholders for API tokens/emails are defined directly in configuration files or sample scripts. | **High** | [examples/github_server.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/examples/github_server.py), [examples/gitlab_server.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/examples/gitlab_server.py) | Enforce environment-only configuration loading, removing hardcoded string defaults. |
 | **Traceback Exposure**: API handlers return Python exception tracebacks as plain-text responses to users. | **Medium** | [examples/github_server.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/examples/github_server.py), [examples/gitlab_server.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/examples/gitlab_server.py) | Return generalized error messages (e.g., "Internal Server Error") and log tracebacks to a secure file. |
-| **Lack of HTML Sanitization in Emails**: Markdown to HTML email converter puts Markdown inside `<pre>` tags without escaping. | **Low** | [email_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/utils/email_utils.py) | Use a secure HTML generator with sanitization to prevent injection issues in HTML mail clients. |
+| **Lack of HTML Sanitization in Emails**: Markdown to HTML email converter puts Markdown inside `<pre>` tags without escaping. | **Low** | [email_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/utils/email_utils.py) | Use a secure HTML generator with sanitization to prevent injection issues in HTML mail clients. |
 
 ---
 
@@ -177,10 +177,10 @@ CodeWatch is a command-line application and headless backend system; it does not
 Spawning a thread for each incoming request bypasses async event loops, leading to memory overhead. It should be refactored to use an async worker pool or queue (e.g., Celery or an async task runner).
 
 ### 2. Large Diff Context Limits
-When reviewing files with massive diffs, the chains truncate content to 4000 characters ([code_review/base.py:L103](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains/code_review/base.py#L103)) or 2000 characters ([pr_summary/base.py:L143](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains/pr_summary/base.py#L143)). This causes the LLM to review incomplete code, missing critical context.
+When reviewing files with massive diffs, the chains truncate content to 4000 characters ([code_review/base.py:L103](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains/code_review/base.py#L103)) or 2000 characters ([pr_summary/base.py:L143](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains/pr_summary/base.py#L143)). This causes the LLM to review incomplete code, missing critical context.
 
 ### 3. Rate-Limiting and Token Usage
-While `DiffEvaluator` includes a `TokenBucket` rate-limiter ([code_evaluator.py:L78](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/utils/code_evaluator.py#L78)), it is not applied to `CodeReviewChain` or `PRSummaryChain`. A high concurrency of API requests will result in HTTP 429 rate limits from OpenAI or DeepSeek.
+While `DiffEvaluator` includes a `TokenBucket` rate-limiter ([code_evaluator.py:L78](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/utils/code_evaluator.py#L78)), it is not applied to `CodeReviewChain` or `PRSummaryChain`. A high concurrency of API requests will result in HTTP 429 rate limits from OpenAI or DeepSeek.
 
 ---
 
@@ -215,7 +215,7 @@ While `DiffEvaluator` includes a `TokenBucket` rate-limiter ([code_evaluator.py:
 User (CLI)             VCS Webhook
    │                       │
    ▼                       ▼
-run_codedog.py        github_server.py
+run_codewatch.py        github_server.py
    │                       │
    └───────────┬───────────┘
                │
@@ -281,21 +281,21 @@ run_codedog.py        github_server.py
 
 ### High Priority (Fix Before Production)
 3.  **Configurable File Filters**: Expose code file suffix extensions through environmental variables instead of hardcoding them.
-    - **Files**: [pull_request_processor.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/processors/pull_request_processor.py)
+    - **Files**: [pull_request_processor.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/processors/pull_request_processor.py)
     - **Proposed Solution**: Dynamically build `SUPPORT_CODE_FILE_SUFFIX` from `os.environ`.
     - **Effort**: Low.
 4.  **Inconsistent Async Return Types**: Align return types of `PRSummaryChain._aprocess_result` to output `PRSummary` objects.
-    - **Files**: [pr_summary/base.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains/pr_summary/base.py)
+    - **Files**: [pr_summary/base.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains/pr_summary/base.py)
     - **Proposed Solution**: Parse output json text into a `PRSummary` pydantic model.
     - **Effort**: Medium.
 
 ### Medium Priority (Improves Maintainability)
 5.  **Migrate to LCEL**: Clean up langchain subclass warnings by migrating chains to modern LangChain Expression Language schemas.
-    - **Files**: All files in [codedog/chains/](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/chains)
+    - **Files**: All files in [codewatch/chains/](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/chains)
     - **Proposed Solution**: Rewrite using `RunnableSequence` or pipe operators.
     - **Effort**: High.
 6.  **Unify Project Settings**: Centralize environment variable loading into a single Pydantic configuration class.
-    - **Files**: [langchain_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/utils/langchain_utils.py), [email_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codedog/utils/email_utils.py)
+    - **Files**: [langchain_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/utils/langchain_utils.py), [email_utils.py](file:///c:/Users/chgya/OneDrive/문서/CodeWatch/codewatch/utils/email_utils.py)
     - **Proposed Solution**: Implement a settings configuration class.
     - **Effort**: Medium.
 
@@ -308,7 +308,7 @@ We propose a multi-stage refactoring roadmap to resolve these architecture weakn
 ### Current Structure
 ```
 CodeWatch/
-├── codedog/
+├── codewatch/
 │   ├── actors/reporters/ (pull_request, code_review, pr_summary)
 │   ├── chains/ (pr_summary, code_review)
 │   ├── models/ (Pydantic schemas)
@@ -320,7 +320,7 @@ CodeWatch/
 ### Proposed Structure
 ```
 CodeWatch/
-├── codedog/
+├── codewatch/
 │   ├── actors/reporters/ (Refactored markdown layout templates)
 │   ├── chains/ (Migrated to LCEL)
 │   ├── config/ (Settings manager class)

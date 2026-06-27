@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
-from codedog.processors.pull_request_processor import PullRequestProcessor
-from codedog.models import ChangeFile, ChangeSummary, PullRequest, ChangeStatus
+from codewatch.processors.pull_request_processor import PullRequestProcessor
+from codewatch.models import ChangeFile, ChangeSummary, PullRequest, ChangeStatus
 
 
 class TestPullRequestProcessor(unittest.TestCase):

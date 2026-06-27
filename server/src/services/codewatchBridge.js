@@ -292,6 +292,7 @@ async function persistReviewResult(data, prUUID = null, userId = null) {
     performanceIssues: insertedReview.performance_issues,
     docSuggestions: insertedReview.suggestions,
     codeDiff: insertedReview.diff_data,
+    rawMarkdown: insertedReview.raw_markdown || '',
     createdAt: insertedReview.created_at
   };
 }

@@ -13,11 +13,11 @@ class TestLangchainUtils(unittest.TestCase):
     def test_module_imports(self):
         """Simple test to verify imports work"""
         # This is a basic test to check that our module exists and can be imported
-        from codedog.utils import langchain_utils
+        from codewatch.utils import langchain_utils
         self.assertTrue(hasattr(langchain_utils, 'load_gpt_llm'))
         self.assertTrue(hasattr(langchain_utils, 'load_gpt4_llm'))
 
-    @patch('codedog.utils.langchain_utils.env')
+    @patch('codewatch.utils.langchain_utils.env')
     def test_load_gpt_llm_functions(self, mock_env):
         """Test that the load functions access environment variables"""
         # Mock the env.get calls
@@ -30,7 +30,7 @@ class TestLangchainUtils(unittest.TestCase):
         # Reset mock for possible reuse
         mock_env.reset_mock()
 
-    @patch('codedog.utils.langchain_utils.env')
+    @patch('codewatch.utils.langchain_utils.env')
     def test_azure_config_loading(self, mock_env):
         """Test that Azure configuration is handled correctly"""
         # We'll just check if env.get is called with the right key
@@ -39,7 +39,7 @@ class TestLangchainUtils(unittest.TestCase):
         mock_env.get.return_value = "true"
 
         # Import module but don't call functions
-        from codedog.utils import langchain_utils
+        from codewatch.utils import langchain_utils
 
         # We won't call load_gpt_llm here to avoid creating actual models
         # Just verify it can be imported
@@ -53,7 +53,7 @@ class TestLangchainUtils(unittest.TestCase):
 
     def test_deepseek_normalize_messages(self):
         """Test that messages are formatted to comply with DeepSeek API rules"""
-        from codedog.utils.langchain_utils import DeepSeekChatModel
+        from codewatch.utils.langchain_utils import DeepSeekChatModel
         from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
         model = DeepSeekChatModel(
@@ -92,10 +92,10 @@ class TestLangchainUtils(unittest.TestCase):
         self.assertEqual(normalized_prepended[0], {"role": "user", "content": "Please process the following:"})
         self.assertEqual(normalized_prepended[1], {"role": "assistant", "content": "Assistant1"})
 
-    @patch('codedog.utils.langchain_utils.requests.post')
+    @patch('codewatch.utils.langchain_utils.requests.post')
     def test_deepseek_generate_payload_reasoner(self, mock_post):
         """Test that deepseek-reasoner omits temperature and top_p from payload"""
-        from codedog.utils.langchain_utils import DeepSeekR1Model
+        from codewatch.utils.langchain_utils import DeepSeekR1Model
         from langchain_core.messages import HumanMessage
         import json
 
@@ -125,10 +125,10 @@ class TestLangchainUtils(unittest.TestCase):
         self.assertNotIn("temperature", payload)
         self.assertNotIn("top_p", payload)
 
-    @patch('codedog.utils.langchain_utils.requests.post')
+    @patch('codewatch.utils.langchain_utils.requests.post')
     def test_deepseek_generate_payload_chat(self, mock_post):
         """Test that deepseek-chat includes temperature and top_p in payload"""
-        from codedog.utils.langchain_utils import DeepSeekChatModel
+        from codewatch.utils.langchain_utils import DeepSeekChatModel
         from langchain_core.messages import HumanMessage
         import json
 
@@ -162,7 +162,7 @@ class TestLangchainUtils(unittest.TestCase):
         """Test that _agenerate asynchronously fetches and parses content correctly without NameError"""
         import asyncio
         from unittest.mock import patch, MagicMock
-        from codedog.utils.langchain_utils import DeepSeekChatModel
+        from codewatch.utils.langchain_utils import DeepSeekChatModel
         from langchain_core.messages import HumanMessage
 
         model = DeepSeekChatModel(
@@ -174,7 +174,7 @@ class TestLangchainUtils(unittest.TestCase):
             top_p=0.9
         )
 
-        with patch('codedog.utils.langchain_utils.aiohttp.ClientSession.post') as mock_post:
+        with patch('codewatch.utils.langchain_utils.aiohttp.ClientSession.post') as mock_post:
             # Mock aiohttp response context manager
             mock_response = MagicMock()
             mock_response.status = 200

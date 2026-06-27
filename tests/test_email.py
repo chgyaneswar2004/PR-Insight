@@ -5,7 +5,7 @@ import smtplib
 import ssl
 from getpass import getpass
 from dotenv import load_dotenv
-from codedog.utils.email_utils import EmailNotifier
+from codewatch.utils.email_utils import EmailNotifier
 
 def check_smtp_connection(smtp_server, smtp_port):
     """Test basic connection to SMTP server."""
@@ -64,7 +64,7 @@ def test_email_connection():
     smtp_server = os.environ.get("SMTP_SERVER")
     smtp_port = os.environ.get("SMTP_PORT")
     smtp_username = os.environ.get("SMTP_USERNAME")
-    smtp_password = os.environ.get("SMTP_PASSWORD") or os.environ.get("CODEDOG_SMTP_PASSWORD")
+    smtp_password = os.environ.get("SMTP_PASSWORD") or os.environ.get("CODEWATCH_SMTP_PASSWORD")
     notification_emails = os.environ.get("NOTIFICATION_EMAILS")
     
     # Print configuration (without password)
@@ -119,8 +119,8 @@ def test_email_connection():
         print(f"\nSending test email to: {', '.join(to_emails)}")
         success = notifier.send_report(
             to_emails=to_emails,
-            subject="[CodeDog] Email Configuration Test",
-            markdown_content="# CodeDog Email Test\n\nIf you're receiving this email, your CodeDog email configuration is working correctly.",
+            subject="[CodeWatch] Email Configuration Test",
+            markdown_content="# CodeWatch Email Test\n\nIf you're receiving this email, your CodeWatch email configuration is working correctly.",
         )
         
         if success:
@@ -144,7 +144,7 @@ def test_email_connection():
         return False
 
 if __name__ == "__main__":
-    print("CodeDog Email Configuration Test")
+    print("CodeWatch Email Configuration Test")
     print("================================\n")
     result = test_email_connection()
     sys.exit(0 if result else 1) 

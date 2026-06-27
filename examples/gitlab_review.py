@@ -7,10 +7,10 @@ from gitlab import Gitlab
 from langchain_community.callbacks.manager import get_openai_callback
 from langchain_visualizer import visualize
 
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.chains import CodeReviewChain, PRSummaryChain
-from codedog.retrievers import GitlabRetriever
-from codedog.utils.langchain_utils import load_gpt4_llm, load_gpt_llm
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.chains import CodeReviewChain, PRSummaryChain
+from codewatch.retrievers import GitlabRetriever
+from codewatch.utils.langchain_utils import load_gpt4_llm, load_gpt_llm
 
 gitlab_url = env.get("GITLAB_URL", "https://gitlab.com")
 gitlab_token = env.get("GITLAB_TOKEN", "")

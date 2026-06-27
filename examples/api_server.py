@@ -6,14 +6,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from github import Github
 
-from codedog.retrievers.github_retriever import GithubRetriever
-from codedog.chains.pr_summary.base import PRSummaryChain
-from codedog.chains.code_review.base import CodeReviewChain
-from codedog.actors.reporters.code_review import CodeReviewMarkdownReporter
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.utils.langchain_utils import load_model_by_name
-from codedog.config.settings import settings
-from codedog.utils.email_utils import send_report_email
+from codewatch.retrievers.github_retriever import GithubRetriever
+from codewatch.chains.pr_summary.base import PRSummaryChain
+from codewatch.chains.code_review.base import CodeReviewChain
+from codewatch.actors.reporters.code_review import CodeReviewMarkdownReporter
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.utils.langchain_utils import load_model_by_name
+from codewatch.config.settings import settings
+from codewatch.utils.email_utils import send_report_email
 from langchain_community.callbacks.manager import get_openai_callback
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -154,7 +154,7 @@ def get_llm_clients(credentials: dict):
         model = credentials.get("CODE_REVIEW_MODEL") or os.environ.get("CODE_REVIEW_MODEL")
         
         if api_base and "deepseek" in api_base:
-            from codedog.utils.langchain_utils import DeepSeekChatModel
+            from codewatch.utils.langchain_utils import DeepSeekChatModel
             single_llm = DeepSeekChatModel(
                 api_key=api_key,
                 model_name=model,
@@ -207,9 +207,9 @@ async def review_pr(request: ReviewRequest):
 
         # Set or remove the throttle environment variable
         if throttle:
-            os.environ["CODEDOG_THROTTLE"] = "true"
+            os.environ["CODEWATCH_THROTTLE"] = "true"
         else:
-            os.environ.pop("CODEDOG_THROTTLE", None)
+            os.environ.pop("CODEWATCH_THROTTLE", None)
         
         with get_openai_callback() as cb:
             logger.info(f"Starting PR summary analysis using Gemini (model: {getattr(summary_llm, 'model', 'gemini-3.1-flash-lite')})")
@@ -270,7 +270,7 @@ async def review_pr(request: ReviewRequest):
                 email_addresses = [email.strip() for email in notification_emails.split(",") if email.strip()]
                 if email_addresses:
                     logger.info(f"Sending PR review report email to {', '.join(email_addresses)}")
-                    subject = f"[CodeDog Review] PR #{request.pr_number} Review: {pull_request.title}"
+                    subject = f"[CodeWatch Review] PR #{request.pr_number} Review: {pull_request.title}"
                     try:
                         await asyncio.to_thread(
                             send_report_email,

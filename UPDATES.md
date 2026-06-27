@@ -1,4 +1,4 @@
-# CodeDog Project Updates
+# CodeWatch Project Updates
 
 ## Latest Updates
 
@@ -50,24 +50,24 @@ The evaluation now covers the following dimensions:
 
 1. **Evaluate Developer Code**:
    ```bash
-   python run_codedog.py eval "developer_name" --start-date YYYY-MM-DD --end-date YYYY-MM-DD
+   python run_codewatch.py eval "developer_name" --start-date YYYY-MM-DD --end-date YYYY-MM-DD
    ```
 
 2. **Review PR/MR**:
    ```bash
    # GitHub PR review
-   python run_codedog.py pr "repository_name" PR_number
+   python run_codewatch.py pr "repository_name" PR_number
 
    # GitLab MR review
-   python run_codedog.py pr "repository_name" MR_number --platform gitlab
+   python run_codewatch.py pr "repository_name" MR_number --platform gitlab
 
    # Self-hosted GitLab instance
-   python run_codedog.py pr "repository_name" MR_number --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
+   python run_codewatch.py pr "repository_name" MR_number --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
    ```
 
 3. **Set up Git Hooks**:
    ```bash
-   python run_codedog.py setup-hooks
+   python run_codewatch.py setup-hooks
    ```
 
 ### Important Notes
