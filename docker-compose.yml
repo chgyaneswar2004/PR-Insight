@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: pr-insight-db
+    restart: always
+    environment:
+      POSTGRES_DB: pr_insight
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  python-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: pr-insight-python-api
+    restart: always
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - PGHOST=db
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=password123
+      - PGDATABASE=pr_insight
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  node-api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: pr-insight-node-api
+    restart: always
+    environment:
+      - PORT=3001
+      - PGHOST=db
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=password123
+      - PGDATABASE=pr_insight
+      - CODEWATCH_API_URL=http://python-api:8000
+      - MASTER_KEY=pr-insight-default-master-key-32c-fallback
+      - SESSION_SECRET=pr-insight-session-secret-key-123
+      - CORS_ORIGIN=*
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_SOCKET_URL=/
+    container_name: pr-insight-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - node-api
+
+volumes:
+  postgres_data:
