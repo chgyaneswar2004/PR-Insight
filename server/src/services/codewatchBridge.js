@@ -1,6 +1,53 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as db from '../db/client.js';
-// test
+import http from 'http';
+import https from 'https';
+
+function postJson(url, data) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const postData = JSON.stringify(data);
+    const clientModule = parsedUrl.protocol === 'https:' ? https : http;
+    
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      path: parsedUrl.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 600000 // 10 minutes
+    };
+    
+    const req = clientModule.request(options, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error(`Failed to parse JSON response: ${e.message}`));
+          }
+        } else {
+          reject(new Error(`Request failed with status ${res.statusCode}: ${body}`));
+        }
+      });
+    });
+    
+    req.on('error', (e) => { reject(e); });
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timed out'));
+    });
+    
+    req.write(postData);
+    req.end();
+  });
+}
 const AGENT_STEPS = [
   { id: 'PULL_PR', label: 'Fetching PR', description: 'Pulling pull request data and file changes from GitHub' },
   { id: 'ANALYZE_FILES', label: 'Analyzing Files', description: 'Processing changed files and calculating diffs' },
@@ -49,23 +96,11 @@ export async function triggerCodeWatchReview(repoFullName, prNumber, prUUID = nu
     emit('agent:step_start', { stepId: 'RUN_LLM', stepIndex: 2 });
     addLog('info', `Invoking CodeWatch AI analysis chain (Claude)...`, 'RUN_LLM');
     
-    // Call the Python FastAPI server
-    const response = await fetch(`${CODEWATCH_API_URL}/review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        repo: repoFullName, 
-        pr_number: parseInt(prNumber),
-        credentials
-      }),
+    const reviewData = await postJson(`${CODEWATCH_API_URL}/review`, { 
+      repo: repoFullName, 
+      pr_number: parseInt(prNumber),
+      credentials
     });
-
-    if (!response.ok) {
-      const errMsg = await response.text();
-      throw new Error(`CodeWatch FastAPI error: ${errMsg}`);
-    }
-
-    const reviewData = await response.json();
     emit('agent:step_complete', { stepId: 'RUN_LLM', stepIndex: 2, duration: 1500 });
     addLog('success', `✓ AI code analysis completed by Claude`, 'RUN_LLM');
 

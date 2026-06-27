@@ -4,6 +4,7 @@ import { startAgentSimulation } from '../services/agentService.js';
 import * as db from '../db/client.js';
 import { isProductionMode, getDisplayData } from '../db/modeManager.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getUserCredentials } from '../services/credentialsManager.js';
 
 export function createRouter(io, anthropicClient) {
   const router = express.Router();
@@ -18,6 +19,7 @@ export function createRouter(io, anthropicClient) {
     stars: parseInt(r.stars || '0'),
     forks: parseInt(r.forks || '0'),
     openPRs: parseInt(r.open_pr_count || '0'),
+    totalPRs: parseInt(r.total_pr_count || '0'),
     lastActivity: r.updated_at,
     qualityScore: parseInt(r.quality_score || '0'),
     securityIssues: parseInt(r.security_issues || '0'),
@@ -26,30 +28,35 @@ export function createRouter(io, anthropicClient) {
     topics: typeof r.topics === 'string' ? JSON.parse(r.topics) : (r.topics || [])
   });
 
-  const mapPR = (p) => ({
-    id: p.id,
-    repoId: p.repo_id,
-    number: parseInt(p.number || '0'),
-    title: p.title,
-    description: p.description,
-    author: typeof p.author === 'string' ? JSON.parse(p.author) : (p.author || { login: 'unknown', avatar: null }),
-    branch: p.branch,
-    baseBranch: p.base_branch,
-    status: p.status,
-    files: parseInt(p.files || '0'),
-    additions: parseInt(p.additions || '0'),
-    deletions: parseInt(p.deletions || '0'),
-    qualityScore: parseInt(p.quality_score || '0'),
-    createdAt: p.created_at,
-    updatedAt: p.updated_at,
-    labels: typeof p.labels === 'string' ? JSON.parse(p.labels) : (p.labels || []),
-    reviewers: typeof p.reviewers === 'string' ? JSON.parse(p.reviewers) : (p.reviewers || []),
-    commits: parseInt(p.commits || '0'),
-    comments: parseInt(p.comments || '0'),
-    hasReview: p.has_review || false,
-    repoName: p.repo_name,
-    language: p.language
-  });
+  const mapPR = (p) => {
+    let status = p.status;
+    if (status === 'pending') status = 'open';
+    if (status === 'reviewed') status = 'review';
+    return {
+      id: p.id,
+      repoId: p.repo_id,
+      number: parseInt(p.number || '0'),
+      title: p.title,
+      description: p.description,
+      author: typeof p.author === 'string' ? JSON.parse(p.author) : (p.author || { login: 'unknown', avatar: null }),
+      branch: p.branch,
+      baseBranch: p.base_branch,
+      status,
+      files: parseInt(p.files || '0'),
+      additions: parseInt(p.additions || '0'),
+      deletions: parseInt(p.deletions || '0'),
+      qualityScore: parseInt(p.quality_score || '0'),
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+      labels: typeof p.labels === 'string' ? JSON.parse(p.labels) : (p.labels || []),
+      reviewers: typeof p.reviewers === 'string' ? JSON.parse(p.reviewers) : (p.reviewers || []),
+      commits: parseInt(p.commits || '0'),
+      comments: parseInt(p.comments || '0'),
+      hasReview: p.has_review || false,
+      repoName: p.repo_name,
+      language: p.language
+    };
+  };
 
   const mapReview = (rv) => ({
     id: rv.id,
@@ -77,7 +84,16 @@ export function createRouter(io, anthropicClient) {
       const isProd = await isProductionMode();
       if (!isProd) {
         const { search, language, sort } = req.query;
-        let result = [...repos];
+        let result = repos.filter(r => {
+          const repoPRs = pullRequests.filter(p => p.repoId === r.id);
+          return repoPRs.some(p => 
+            p.status === 'open' || 
+            p.status === 'pending' || 
+            p.status === 'review' || 
+            p.status === 'reviewed' || 
+            p.hasReview === true
+          );
+        });
         if (search) result = result.filter(r => r.name.includes(search) || r.description.includes(search));
         if (language) result = result.filter(r => r.language === language);
         if (sort === 'stars') result.sort((a, b) => b.stars - a.stars);
@@ -86,14 +102,83 @@ export function createRouter(io, anthropicClient) {
         return res.json({ repos: result, total: result.length });
       }
 
-      // Query from DB
+      // Sync user's repositories from GitHub if GITHUB_TOKEN is available
+      try {
+        const credentials = await getUserCredentials(req.user.id);
+        const githubToken = credentials['GITHUB_TOKEN'];
+        if (githubToken) {
+          const ghRes = await fetch('https://api.github.com/user/repos?per_page=100&sort=pushed', {
+            headers: {
+              'Authorization': `Bearer ${githubToken}`,
+              'User-Agent': 'PR-Insight',
+              'Accept': 'application/vnd.github+json'
+            }
+          });
+
+          if (ghRes.ok) {
+            const ghRepos = await ghRes.json();
+            for (const gr of ghRepos) {
+              // Check if repo already registered for this user
+              const checkRepo = await db.query(
+                'SELECT id FROM repositories WHERE full_name = $1 AND user_id = $2',
+                [gr.full_name, req.user.id]
+              );
+
+              if (checkRepo.rows.length > 0) {
+                // Update existing repository metadata
+                await db.query(
+                  `UPDATE repositories 
+                   SET name = $1, language = $2, description = $3, stars = $4, forks = $5, visibility = $6, updated_at = NOW() 
+                   WHERE id = $7 AND user_id = $8`,
+                  [
+                    gr.name,
+                    gr.language || 'Unknown',
+                    gr.description || '',
+                    gr.stargazers_count || 0,
+                    gr.forks_count || 0,
+                    gr.private ? 'private' : 'public',
+                    checkRepo.rows[0].id,
+                    req.user.id
+                  ]
+                );
+              } else {
+                // Insert new repository linked to user_id
+                await db.query(
+                  `INSERT INTO repositories (name, full_name, language, description, stars, forks, visibility, user_id, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
+                  [
+                    gr.name,
+                    gr.full_name,
+                    gr.language || 'Unknown',
+                    gr.description || '',
+                    gr.stargazers_count || 0,
+                    gr.forks_count || 0,
+                    gr.private ? 'private' : 'public',
+                    req.user.id
+                  ]
+                );
+              }
+            }
+          } else {
+            console.warn('Failed to fetch repositories from GitHub:', ghRes.statusText);
+          }
+        }
+      } catch (syncErr) {
+        console.error('Error syncing repositories with GitHub:', syncErr);
+      }
+
+      // Query from DB (user scoped) - only return repos with at least one active or reviewed PR
       const result = await db.query(`
-        SELECT r.*, COUNT(p.id) as open_pr_count 
+        SELECT r.*, 
+               COUNT(p.id) FILTER (WHERE p.status = 'pending' OR p.status = 'open') as open_pr_count,
+               COUNT(p.id) as total_pr_count
         FROM repositories r 
-        LEFT JOIN pull_requests p ON p.repo_id = r.id AND p.status != 'reviewed'
+        INNER JOIN pull_requests p ON p.repo_id = r.id AND p.user_id = $1
+        WHERE r.user_id = $1
         GROUP BY r.id
+        HAVING COUNT(p.id) FILTER (WHERE p.status IN ('pending', 'open', 'reviewed', 'review') OR p.has_review = true) > 0
         ORDER BY r.updated_at DESC
-      `);
+      `, [req.user.id]);
       const mapped = result.rows.map(mapRepo);
       res.json({ repos: mapped, total: mapped.length });
     } catch (err) {
@@ -111,7 +196,7 @@ export function createRouter(io, anthropicClient) {
         return res.json(repo);
       }
 
-      const result = await db.query('SELECT * FROM repositories WHERE id = $1', [req.params.id]);
+      const result = await db.query('SELECT * FROM repositories WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
       if (result.rows.length === 0) return res.status(404).json({ error: 'Repo not found' });
       res.json(mapRepo(result.rows[0]));
     } catch (err) {
@@ -127,7 +212,7 @@ export function createRouter(io, anthropicClient) {
         return res.json({ prs, total: prs.length });
       }
 
-      const result = await db.query('SELECT * FROM pull_requests WHERE repo_id = $1', [req.params.id]);
+      const result = await db.query('SELECT * FROM pull_requests WHERE repo_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
       const mapped = result.rows.map(mapPR);
       res.json({ prs: mapped, total: mapped.length });
     } catch (err) {
@@ -157,8 +242,8 @@ export function createRouter(io, anthropicClient) {
         FROM pull_requests p
         JOIN repositories r ON r.id = p.repo_id
       `;
-      const params = [];
-      const conditions = [];
+      const params = [req.user.id];
+      const conditions = ['p.user_id = $1'];
 
       if (status && status !== 'all') {
         params.push(status);
@@ -197,11 +282,11 @@ export function createRouter(io, anthropicClient) {
         return res.json({ ...pr, repo });
       }
 
-      const prResult = await db.query('SELECT * FROM pull_requests WHERE id = $1', [req.params.id]);
+      const prResult = await db.query('SELECT * FROM pull_requests WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
       if (prResult.rows.length === 0) return res.status(404).json({ error: 'PR not found' });
       const pr = prResult.rows[0];
 
-      const repoResult = await db.query('SELECT * FROM repositories WHERE id = $1', [pr.repo_id]);
+      const repoResult = await db.query('SELECT * FROM repositories WHERE id = $1 AND user_id = $2', [pr.repo_id, req.user.id]);
       const repo = repoResult.rows.length > 0 ? mapRepo(repoResult.rows[0]) : null;
 
       res.json({ ...mapPR(pr), repo });
@@ -223,8 +308,8 @@ export function createRouter(io, anthropicClient) {
         SELECT rv.*, p.title, p.author, p.overall_score
         FROM reviews rv
         JOIN pull_requests p ON p.id = rv.pr_id
-        WHERE rv.pr_id = $1
-      `, [req.params.id]);
+        WHERE rv.pr_id = $1 AND rv.user_id = $2
+      `, [req.params.id, req.user.id]);
 
       if (result.rows.length === 0) return res.status(404).json({ error: 'Review not found' });
       res.json(mapReview(result.rows[0]));
@@ -248,16 +333,17 @@ export function createRouter(io, anthropicClient) {
 
     try {
       const prRes = await db.query(
-        'SELECT p.*, r.full_name FROM pull_requests p JOIN repositories r ON r.id = p.repo_id WHERE p.id = $1',
-        [prId]
+        'SELECT p.*, r.full_name FROM pull_requests p JOIN repositories r ON r.id = p.repo_id WHERE p.id = $1 AND p.user_id = $2',
+        [prId, req.user.id]
       );
       if (prRes.rows.length === 0) return res.status(404).json({ error: 'PR not found' });
       const pr = prRes.rows[0];
 
       const { triggerCodeWatchReview } = await import('../services/codewatchBridge.js');
+      const credentials = await getUserCredentials(req.user.id);
       const sessionId = uuidv4();
       
-      triggerCodeWatchReview(pr.full_name, pr.number, pr.id, io, sessionId).catch(err => {
+      triggerCodeWatchReview(pr.full_name, pr.number, pr.id, io, sessionId, req.user.id, credentials).catch(err => {
         console.error('CodeWatch review background execution failed:', err);
       });
 
@@ -276,7 +362,7 @@ export function createRouter(io, anthropicClient) {
         return res.json(analyticsData);
       }
 
-      // Query real data from PostgreSQL
+      // Query real data from PostgreSQL (user scoped)
       const reviewsPerDayRes = await db.query(`
         SELECT 
           TO_CHAR(reviewed_at, 'YYYY-MM-DD') as date, 
@@ -284,32 +370,37 @@ export function createRouter(io, anthropicClient) {
           COALESCE(SUM(additions + deletions), 0) as issues,
           COALESCE(SUM(CASE WHEN overall_score < 70 THEN 1 ELSE 0 END), 0) as security
         FROM pull_requests
-        WHERE reviewed_at > NOW() - INTERVAL '30 days' AND has_review = true
+        WHERE user_id = $1 AND reviewed_at > NOW() - INTERVAL '30 days' AND has_review = true
         GROUP BY TO_CHAR(reviewed_at, 'YYYY-MM-DD')
         ORDER BY date ASC
-      `);
+      `, [req.user.id]);
 
       const issueTypesRes = await db.query(`
         SELECT 
           'Security' as type, COALESCE(SUM(jsonb_array_length(security_issues)), 0) as count, '#EF4444' as color
         FROM reviews
+        WHERE user_id = $1
         UNION ALL
         SELECT 
           'Bug' as type, COALESCE(SUM(jsonb_array_length(quality_issues)), 0) as count, '#F59E0B' as color
         FROM reviews
+        WHERE user_id = $1
         UNION ALL
         SELECT 
           'Performance' as type, COALESCE(SUM(jsonb_array_length(performance_issues)), 0) as count, '#06B6D4' as color
         FROM reviews
+        WHERE user_id = $1
         UNION ALL
         SELECT 
           'Maintainability' as type, COUNT(*) FILTER (WHERE maintainability_score < 7.0) as count, '#7C3AED' as color
         FROM reviews
+        WHERE user_id = $1
         UNION ALL
         SELECT 
           'Documentation' as type, COALESCE(SUM(jsonb_array_length(suggestions)), 0) as count, '#22C55E' as color
         FROM reviews
-      `);
+        WHERE user_id = $1
+      `, [req.user.id]);
 
       const teamPerformanceRes = await db.query(`
         SELECT 
@@ -319,11 +410,12 @@ export function createRouter(io, anthropicClient) {
           ROUND(avg_score, 0) as "avgScore",
           avatar_url as avatar
         FROM developers
+        WHERE user_id = $1
         ORDER BY total_prs DESC
-      `);
+      `, [req.user.id]);
 
-      const totalReviewsRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE has_review = true");
-      const avgQualityRes = await db.query("SELECT AVG(overall_score) FROM pull_requests WHERE has_review = true");
+      const totalReviewsRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE user_id = $1 AND has_review = true", [req.user.id]);
+      const avgQualityRes = await db.query("SELECT AVG(overall_score) FROM pull_requests WHERE user_id = $1 AND has_review = true", [req.user.id]);
 
       const securityTrend = Array.from({ length: 12 }, (_, i) => ({
         month: new Date(Date.now() - (11 - i) * 30 * 24 * 60 * 60 * 1000).toLocaleString('default', { month: 'short' }),
@@ -369,7 +461,7 @@ export function createRouter(io, anthropicClient) {
         return res.json({ notifications, unread: notifications.filter(n => !n.read).length });
       }
       
-      const result = await db.query('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50');
+      const result = await db.query('SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [req.user.id]);
       const mapped = result.rows.map(n => ({
         id: n.id,
         type: n.type,
@@ -398,7 +490,7 @@ export function createRouter(io, anthropicClient) {
         return res.json({ success: true });
       }
 
-      await db.query('UPDATE notifications SET is_read = TRUE WHERE id = $1', [req.params.id]);
+      await db.query('UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -413,66 +505,8 @@ export function createRouter(io, anthropicClient) {
         return res.json({ success: true });
       }
 
-      await db.query('UPDATE notifications SET is_read = TRUE');
+      await db.query('UPDATE notifications SET is_read = TRUE WHERE user_id = $1', [req.user.id]);
       res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin
-  router.get('/admin/users', async (req, res) => {
-    try {
-      const isProd = await isProductionMode();
-      if (!isProd) {
-        return res.json({ users, total: users.length });
-      }
-
-      const result = await db.query('SELECT * FROM developers ORDER BY username ASC');
-      const mapped = result.rows.map(dev => ({
-        id: dev.id,
-        login: dev.username,
-        name: dev.display_name || dev.username,
-        email: `${dev.username}@acme.corp`,
-        role: 'developer',
-        avatar: dev.avatar_url,
-        joined: dev.last_active,
-        prsReviewed: dev.total_prs
-      }));
-      res.json({ users: mapped, total: mapped.length });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  router.get('/admin/settings', async (req, res) => {
-    try {
-      const isProd = await isProductionMode();
-      if (!isProd) {
-        return res.json(settings);
-      }
-
-      const result = await db.query("SELECT * FROM settings WHERE key = 'app_settings'");
-      if (result.rows.length === 0) return res.json(settings);
-      res.json(result.rows[0].value);
-    } catch (err) {
-      res.json(settings);
-    }
-  });
-
-  router.put('/admin/settings', async (req, res) => {
-    try {
-      const isProd = await isProductionMode();
-      if (!isProd) {
-        Object.assign(settings, req.body);
-        return res.json({ success: true, settings });
-      }
-
-      await db.query(
-        "INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()",
-        ['app_settings', JSON.stringify(req.body)]
-      );
-      res.json({ success: true, settings: req.body });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -483,24 +517,60 @@ export function createRouter(io, anthropicClient) {
     try {
       const isProd = await isProductionMode();
       if (!isProd) {
+        const filteredRepos = repos.filter(r => {
+          const repoPRs = pullRequests.filter(p => p.repoId === r.id);
+          return repoPRs.some(p => 
+            p.status === 'open' || 
+            p.status === 'pending' || 
+            p.status === 'review' || 
+            p.status === 'reviewed' || 
+            p.hasReview === true
+          );
+        });
         return res.json({
-          totalRepos: repos.length,
+          totalRepos: filteredRepos.length,
           openPRs: pullRequests.filter(pr => pr.status === 'open').length,
           prsReviewed: pullRequests.filter(pr => pr.hasReview).length,
-          securityIssues: repos.reduce((acc, r) => acc + r.securityIssues, 0),
-          avgQualityScore: Math.round(repos.reduce((acc, r) => acc + r.qualityScore, 0) / repos.length),
+          securityIssues: filteredRepos.reduce((acc, r) => acc + r.securityIssues, 0),
+          avgQualityScore: filteredRepos.length > 0 
+            ? Math.round(filteredRepos.reduce((acc, r) => acc + r.qualityScore, 0) / filteredRepos.length)
+            : 85,
           ...analyticsData.metrics,
         });
       }
 
-      const totalReposRes = await db.query("SELECT COUNT(*) FROM repositories");
-      const openPRsRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE status = 'open'");
-      const prsReviewedRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE has_review = true");
-      const securityIssuesRes = await db.query("SELECT COALESCE(SUM(security_issues), 0) as count FROM repositories");
-      const avgQualityRes = await db.query("SELECT AVG(quality_score) FROM repositories");
+      const totalReposRes = await db.query(`
+        SELECT COUNT(DISTINCT r.id) as count 
+        FROM repositories r
+        INNER JOIN pull_requests p ON p.repo_id = r.id AND p.user_id = $1
+        WHERE r.user_id = $1
+          AND (p.status IN ('pending', 'open', 'reviewed', 'review') OR p.has_review = true)
+      `, [req.user.id]);
+      const openPRsRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE (status = 'open' OR status = 'pending') AND user_id = $1", [req.user.id]);
+      const prsReviewedRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE (has_review = true OR status = 'reviewed') AND user_id = $1", [req.user.id]);
+      const securityIssuesRes = await db.query(`
+        SELECT COALESCE(SUM(r.security_issues), 0) as count 
+        FROM repositories r
+        WHERE r.user_id = $1
+          AND EXISTS (
+            SELECT 1 FROM pull_requests p 
+            WHERE p.repo_id = r.id AND p.user_id = $1
+              AND (p.status IN ('pending', 'open', 'reviewed', 'review') OR p.has_review = true)
+          )
+      `, [req.user.id]);
+      const avgQualityRes = await db.query(`
+        SELECT AVG(r.quality_score) as avg 
+        FROM repositories r
+        WHERE r.user_id = $1 AND r.quality_score > 0
+          AND EXISTS (
+            SELECT 1 FROM pull_requests p 
+            WHERE p.repo_id = r.id AND p.user_id = $1
+              AND (p.status IN ('pending', 'open', 'reviewed', 'review') OR p.has_review = true)
+          )
+      `, [req.user.id]);
 
-      const totalReviewsRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE has_review = true");
-      const avgQualityPRRes = await db.query("SELECT AVG(overall_score) FROM pull_requests WHERE has_review = true");
+      const totalReviewsRes = await db.query("SELECT COUNT(*) FROM pull_requests WHERE has_review = true AND user_id = $1", [req.user.id]);
+      const avgQualityPRRes = await db.query("SELECT AVG(overall_score) FROM pull_requests WHERE has_review = true AND user_id = $1", [req.user.id]);
 
       const totalReviews = parseInt(totalReviewsRes.rows[0].count || '0');
 
@@ -517,12 +587,24 @@ export function createRouter(io, anthropicClient) {
       });
     } catch (err) {
       console.error(err);
+      const filteredRepos = repos.filter(r => {
+        const repoPRs = pullRequests.filter(p => p.repoId === r.id);
+        return repoPRs.some(p => 
+          p.status === 'open' || 
+          p.status === 'pending' || 
+          p.status === 'review' || 
+          p.status === 'reviewed' || 
+          p.hasReview === true
+        );
+      });
       res.json({
-        totalRepos: repos.length,
+        totalRepos: filteredRepos.length,
         openPRs: pullRequests.filter(pr => pr.status === 'open').length,
         prsReviewed: pullRequests.filter(pr => pr.hasReview).length,
-        securityIssues: repos.reduce((acc, r) => acc + r.securityIssues, 0),
-        avgQualityScore: Math.round(repos.reduce((acc, r) => acc + r.qualityScore, 0) / repos.length),
+        securityIssues: filteredRepos.reduce((acc, r) => acc + r.securityIssues, 0),
+        avgQualityScore: filteredRepos.length > 0 
+          ? Math.round(filteredRepos.reduce((acc, r) => acc + r.qualityScore, 0) / filteredRepos.length)
+          : 85,
         ...analyticsData.metrics,
       });
     }

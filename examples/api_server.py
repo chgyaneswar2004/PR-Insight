@@ -204,8 +204,13 @@ async def review_pr(request: ReviewRequest):
             os.environ.pop("CODEDOG_THROTTLE", None)
         
         with get_openai_callback() as cb:
+            logger.info(f"Starting PR summary analysis using Gemini (model: {getattr(summary_llm, 'model', 'gemini-3.1-flash-lite')})")
             summary_result = await summary_chain.ainvoke({"pull_request": pull_request})
+            logger.info("PR summary analysis completed.")
+            
+            logger.info(f"Starting code review analysis using NVIDIA NIM Llama (model: {getattr(review_llm, 'model_name', 'meta/llama-3.1-70b-instruct')})")
             review_result = await review_chain.ainvoke({"pull_request": pull_request})
+            logger.info("Code review analysis completed.")
             
             reporter = CodeReviewMarkdownReporter(review_result["code_reviews"])
             raw_markdown = reporter.report()

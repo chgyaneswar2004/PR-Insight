@@ -158,6 +158,7 @@ def send_report_email(
     subject: str,
     markdown_content: str,
     cc_emails: Optional[List[str]] = None,
+    credentials: Optional[dict] = None,
 ) -> bool:
     """Helper function to send code review report via email.
     
@@ -166,17 +167,21 @@ def send_report_email(
         subject: Email subject
         markdown_content: Report content in markdown format
         cc_emails: List of CC email addresses
+        credentials: User-specific SMTP settings dictionary
             
     Returns:
         bool: True if email was sent successfully, False otherwise
     """
     # Check if email notification is enabled
-    if not settings.email_enabled:
+    email_enabled = credentials.get("EMAIL_ENABLED") == "true" if credentials and "EMAIL_ENABLED" in credentials else settings.email_enabled
+    if not email_enabled:
         print("Email notifications are disabled. Set EMAIL_ENABLED=true to enable.")
         return False
     
     try:
+        # Enforce using system-wide default SMTP settings (e.g. prinsight4u@gmail.com)
         notifier = EmailNotifier()
+
         return notifier.send_report(
             to_emails=to_emails,
             subject=subject,
