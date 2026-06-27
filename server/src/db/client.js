@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const useSsl = process.env.PGHOST && 
+               !process.env.PGHOST.includes('localhost') && 
+               !process.env.PGHOST.includes('127.0.0.1');
+
 // Read connection parameters from environment with fallback values
 export const pool = new pg.Pool({
   host: process.env.PGHOST || 'localhost',
@@ -14,6 +18,7 @@ export const pool = new pg.Pool({
   password: process.env.PGPASSWORD || 'Akhil@7847',
   database: process.env.PGDATABASE || 'postgres',
   connectionTimeoutMillis: 5000,
+  ssl: useSsl ? { rejectUnauthorized: false } : false
 });
 
 export async function query(text, params) {
