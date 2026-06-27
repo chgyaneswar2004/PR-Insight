@@ -7,6 +7,7 @@ export interface Repo {
   stars: number;
   forks: number;
   openPRs: number;
+  totalPRs?: number;
   lastActivity: string;
   qualityScore: number;
   securityIssues: number;
