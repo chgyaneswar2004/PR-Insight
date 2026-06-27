@@ -776,6 +776,7 @@ export function createRouter(io, anthropicClient) {
           : 85,
         ...analyticsData.metrics,
       });
+    }
   });
 
   router.put('/prs/:id/merge', async (req, res) => {

@@ -11,7 +11,7 @@ from codewatch.chains.pr_summary.base import PRSummaryChain
 from codewatch.chains.code_review.base import CodeReviewChain
 from codewatch.actors.reporters.code_review import CodeReviewMarkdownReporter
 from codewatch.actors.reporters.pull_request import PullRequestReporter
-from codewatch.utils.langchain_utils import load_model_by_name
+from codewatch.utils.langchain_utils import load_model_by_name, RateLimitedChatOpenAI
 from codewatch.config.settings import settings
 from codewatch.utils.email_utils import send_report_email
 from langchain_community.callbacks.manager import get_openai_callback
@@ -131,19 +131,21 @@ def get_llm_clients(credentials: dict):
         nvidia_key = credentials.get("NVIDIA_API_KEY") or os.environ.get("NVIDIA_API_KEY")
         
         # Gemini for summaries — lightweight, high volume
-        summary_llm = ChatGoogleGenerativeAI(
+        summary_llm = RateLimitedChatOpenAI(
+            api_key=gemini_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             model=credentials.get("CODE_SUMMARY_MODEL") or os.environ.get("CODE_SUMMARY_MODEL", "gemini-3.1-flash-lite"),
-            google_api_key=gemini_key,
-            temperature=0
+            temperature=0,
+            max_retries=30
         )
 
         # NVIDIA NIM for code review — heavy, low volume
-        review_llm = ChatOpenAI(
+        review_llm = RateLimitedChatOpenAI(
             model=credentials.get("CODE_REVIEW_MODEL") or os.environ.get("CODE_REVIEW_MODEL", "meta/llama-3.1-70b-instruct"),
-            openai_api_key=nvidia_key,
-            openai_api_base="https://integrate.api.nvidia.com/v1",
+            api_key=nvidia_key,
+            base_url="https://integrate.api.nvidia.com/v1",
             temperature=0,
-            max_retries=10
+            max_retries=30
         )
 
         return summary_llm, review_llm, throttle
