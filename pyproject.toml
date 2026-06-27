@@ -1,16 +1,16 @@
 [tool.poetry]
-name = "codedog"
+name = "codewatch"
 version = "0.11.0"
 license = "MIT"
 readme = "README.md"
 authors = ["Arcadia <arcadia822@gmail.com>", "Linpp "]
 description = "Codedog reviews your pull request using llm."
-repository = "https://www.github.com/codedog-ai/codedog"
-homepage = "https://www.codedog.ai"
+repository = "https://www.github.com/codewatch-ai/codewatch"
+homepage = "https://www.codewatch.ai"
 keywords = ["code review", "langchain", "llm"]
 
 [tool.poetry.urls]
-"Bug Tracker" = "https://github.com/codedog-ai/codedog/issues"
+"Bug Tracker" = "https://github.com/codewatch-ai/codewatch/issues"
 "Discord" = "https://discord.gg/8TfqpFC4"
 
 [tool.poetry.dependencies]
@@ -77,7 +77,7 @@ pdoc = "^14.0.0"
 branch = "master"
 build_command = "poetry build"
 commit_message = 'chore(release): release version v{version}'
-version_variables = ["codedog/version.py:VERSION"]
+version_variables = ["codewatch/version.py:VERSION"]
 version_toml = ["pyproject.toml:tool.poetry.version"]
 
 [tool.semantic_release.remote]

@@ -75,8 +75,163 @@ export function createRouter(io, anthropicClient) {
     performanceIssues: typeof rv.performance_issues === 'string' ? JSON.parse(rv.performance_issues) : (rv.performance_issues || []),
     docSuggestions: typeof rv.suggestions === 'string' ? JSON.parse(rv.suggestions) : (rv.suggestions || []),
     codeDiff: typeof rv.diff_data === 'string' ? JSON.parse(rv.diff_data) : (rv.diff_data || null),
+    rawMarkdown: rv.raw_markdown || '',
     createdAt: rv.created_at
   });
+
+  async function syncPullRequestsFromGitHub(userId, token) {
+    try {
+      const userRes = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'PR-Insight',
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+      if (!userRes.ok) return;
+      const ghUser = await userRes.json();
+      const username = ghUser.login;
+
+      const searchRes = await fetch(`https://api.github.com/search/issues?q=is:open+is:pr+user:${username}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'PR-Insight',
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+      if (!searchRes.ok) return;
+      const searchData = await searchRes.json();
+
+      for (const item of searchData.items) {
+        const repoUrlParts = item.repository_url.split('/repos/');
+        if (repoUrlParts.length < 2) continue;
+        const repoFullName = repoUrlParts[1];
+
+        const repoRes = await db.query(
+          'SELECT id FROM repositories WHERE full_name = $1 AND user_id = $2',
+          [repoFullName, userId]
+        );
+        if (repoRes.rows.length === 0) continue;
+        const repoId = repoRes.rows[0].id;
+
+        const prRes = await db.query(
+          'SELECT id FROM pull_requests WHERE repo_id = $1 AND number = $2 AND user_id = $3',
+          [repoId, item.number, userId]
+        );
+
+        const author = {
+          login: item.user?.login || 'unknown',
+          avatar: item.user?.avatar_url || null
+        };
+
+        if (prRes.rows.length > 0) {
+          await db.query(
+            `UPDATE pull_requests 
+             SET title = $1, author = $2, comments = $3, updated_at = NOW()
+             WHERE id = $4`,
+            [
+              item.title,
+              JSON.stringify(author),
+              item.comments || 0,
+              prRes.rows[0].id
+            ]
+          );
+        } else {
+          await db.query(
+            `INSERT INTO pull_requests (
+              repo_id, number, title, description, author, branch, base_branch, status,
+              files, additions, deletions, commits, comments, has_review, user_id, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, FALSE, $14, $15, NOW())`,
+            [
+              repoId,
+              item.number,
+              item.title,
+              item.body || '',
+              JSON.stringify(author),
+              'unknown',
+              'main',
+              'pending',
+              0, 0, 0, 0,
+              item.comments || 0,
+              userId,
+              item.created_at || new Date().toISOString()
+            ]
+          );
+        }
+      }
+
+      // Sync non-owned repositories
+      const allReposRes = await db.query('SELECT full_name, id FROM repositories WHERE user_id = $1', [userId]);
+      const externalRepos = allReposRes.rows.filter(r => !r.full_name.toLowerCase().startsWith(`${username.toLowerCase()}/`));
+      
+      for (const extRepo of externalRepos) {
+        const prsRes = await fetch(`https://api.github.com/repos/${extRepo.full_name}/pulls?state=open`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'User-Agent': 'PR-Insight',
+            'Accept': 'application/vnd.github+json'
+          }
+        });
+        if (!prsRes.ok) continue;
+        const prs = await prsRes.json();
+        for (const pr of prs) {
+          const prRes = await db.query(
+            'SELECT id FROM pull_requests WHERE repo_id = $1 AND number = $2 AND user_id = $3',
+            [extRepo.id, pr.number, userId]
+          );
+
+          const author = {
+            login: pr.user?.login || 'unknown',
+            avatar: pr.user?.avatar_url || null
+          };
+
+          if (prRes.rows.length > 0) {
+            await db.query(
+              `UPDATE pull_requests 
+               SET title = $1, author = $2, branch = $3, base_branch = $4, files = $5, additions = $6, deletions = $7, updated_at = NOW()
+               WHERE id = $8`,
+              [
+                pr.title,
+                JSON.stringify(author),
+                pr.head?.ref || 'unknown',
+                pr.base?.ref || 'main',
+                pr.changed_files || 0,
+                pr.additions || 0,
+                pr.deletions || 0,
+                prRes.rows[0].id
+              ]
+            );
+          } else {
+            await db.query(
+              `INSERT INTO pull_requests (
+                repo_id, number, title, description, author, branch, base_branch, status,
+                files, additions, deletions, commits, comments, has_review, user_id, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, FALSE, $14, $15, NOW())`,
+              [
+                extRepo.id,
+                pr.number,
+                pr.title,
+                pr.body || '',
+                JSON.stringify(author),
+                pr.head?.ref || 'unknown',
+                pr.base?.ref || 'main',
+                'pending',
+                pr.changed_files || 0,
+                pr.additions || 0,
+                pr.deletions || 0,
+                pr.commits || 0,
+                pr.comments || 0,
+                userId,
+                pr.created_at || new Date().toISOString()
+              ]
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error syncing pull requests with GitHub:', err);
+    }
+  }
 
   // Repos
   router.get('/repos', async (req, res) => {
@@ -162,6 +317,8 @@ export function createRouter(io, anthropicClient) {
           } else {
             console.warn('Failed to fetch repositories from GitHub:', ghRes.statusText);
           }
+          // Sync open pull requests too!
+          await syncPullRequestsFromGitHub(req.user.id, githubToken);
         }
       } catch (syncErr) {
         console.error('Error syncing repositories with GitHub:', syncErr);
@@ -237,6 +394,18 @@ export function createRouter(io, anthropicClient) {
       }
 
       const { status, repoId, search } = req.query;
+
+      // Sync open PRs from GitHub first
+      try {
+        const credentials = await getUserCredentials(req.user.id);
+        const githubToken = credentials['GITHUB_TOKEN'];
+        if (githubToken) {
+          await syncPullRequestsFromGitHub(req.user.id, githubToken);
+        }
+      } catch (syncErr) {
+        console.error('Error syncing pull requests on get:', syncErr);
+      }
+
       let queryText = `
         SELECT p.*, r.name as repo_name, r.language
         FROM pull_requests p
@@ -607,6 +776,69 @@ export function createRouter(io, anthropicClient) {
           : 85,
         ...analyticsData.metrics,
       });
+    }
+  });
+
+  router.put('/prs/:id/merge', async (req, res) => {
+    try {
+      const isProd = await isProductionMode();
+      if (!isProd) {
+        // Mock update in dev state
+        const prIndex = pullRequests.findIndex(p => p.id === req.params.id);
+        if (prIndex !== -1) {
+          pullRequests[prIndex].status = 'merged';
+        }
+        return res.json({ success: true, message: 'PR merged (simulated)' });
+      }
+
+      // Get PR details from DB
+      const prResult = await db.query(
+        'SELECT p.*, r.full_name FROM pull_requests p JOIN repositories r ON r.id = p.repo_id WHERE p.id = $1 AND p.user_id = $2',
+        [req.params.id, req.user.id]
+      );
+      if (prResult.rows.length === 0) return res.status(404).json({ error: 'PR not found' });
+      const pr = prResult.rows[0];
+
+      // Get GitHub token
+      const credentials = await getUserCredentials(req.user.id);
+      const githubToken = credentials['GITHUB_TOKEN'];
+      if (!githubToken) {
+        return res.status(400).json({ error: 'GitHub credentials not found. Please setup integration.' });
+      }
+
+      // Merge PR on GitHub
+      const { mergeMethod = 'merge' } = req.body;
+      const mergeRes = await fetch(`https://api.github.com/repos/${pr.full_name}/pulls/${pr.number}/merge`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'User-Agent': 'PR-Insight',
+          'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({
+          merge_method: mergeMethod,
+          commit_title: `Merge PR #${pr.number} via PR-Insight`,
+          commit_message: `Merged automatically via PR-Insight AI Review dashboard.`
+        })
+      });
+
+      if (!mergeRes.ok) {
+        const errText = await mergeRes.text();
+        return res.status(mergeRes.status).json({ error: `GitHub API error: ${errText}` });
+      }
+
+      const mergeData = await mergeRes.json();
+      
+      // Update PR status in DB
+      await db.query(
+        "UPDATE pull_requests SET status = 'merged', updated_at = NOW() WHERE id = $1 AND user_id = $2",
+        [req.params.id, req.user.id]
+      );
+
+      res.json({ success: true, message: mergeData.message || 'PR merged successfully' });
+    } catch (err) {
+      console.error('Error merging PR:', err);
+      res.status(500).json({ error: err.message });
     }
   });
 

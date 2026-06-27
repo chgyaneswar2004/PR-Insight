@@ -8,13 +8,23 @@ import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
 
 export default function Repositories() {
-  const { repos, fetchRepos } = useAppStore();
+  const { repos, fetchRepos, isLoadingRepos } = useAppStore();
   const { user } = useAuthStore();
   const githubAppUrl = user?.githubAppUrl || 'https://github.com/apps/pr-insight';
 
   useEffect(() => {
     fetchRepos();
   }, [fetchRepos]);
+
+  if (isLoadingRepos && repos.length === 0) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="w-10 h-10 border-4 border-accent-cyan border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   const getLanguageColor = (lang: string) => {
     const colors: Record<string, string> = {

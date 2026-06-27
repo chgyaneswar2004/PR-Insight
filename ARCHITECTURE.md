@@ -13,7 +13,7 @@ The core workflow involves:
 
 The architecture emphasizes separation of concerns, allowing different platforms, LLMs, or reporting formats to be potentially integrated more easily.
 
-## 2. Core Concepts & Data Models (`codedog/models/`)
+## 2. Core Concepts & Data Models (`codewatch/models/`)
 
 Pydantic `BaseModel`s are used extensively to define the structure of data passed between different components. This ensures data consistency and leverages Pydantic's validation capabilities.
 
@@ -34,35 +34,35 @@ These models provide a platform-agnostic representation of the core Git concepts
 
 ## 3. Component Deep Dive
 
-### 3.1. Retrievers (`codedog/retrievers/`)
+### 3.1. Retrievers (`codewatch/retrievers/`)
 
 *   **Purpose**: Abstract away the specifics of interacting with different Git hosting platforms (GitHub, GitLab). They fetch raw data and transform it into the project's internal Pydantic `models`.
 *   **Design**:
     *   **`Retriever` (ABC)**: Defines the common interface (`retriever_type`, `pull_request`, `repository`, `source_repository`, `changed_files`, `get_blob`, `get_commit`).
     *   **`GithubRetriever`**: Implements `Retriever` using the `PyGithub` library.
         *   Initializes with a `Github` client, repo name/ID, and PR number.
-        *   Maps `github.PullRequest`, `github.Repository`, `github.File`, `github.Issue`, etc., to `codedog` models (`_build_repository`, `_build_pull_request`, `_build_change_file`, `_build_issue`).
-        *   Parses diff content (`_parse_and_build_diff_content`) using `unidiff` via `codedog.utils.diff_utils`.
+        *   Maps `github.PullRequest`, `github.Repository`, `github.File`, `github.Issue`, etc., to `codewatch` models (`_build_repository`, `_build_pull_request`, `_build_change_file`, `_build_issue`).
+        *   Parses diff content (`_parse_and_build_diff_content`) using `unidiff` via `codewatch.utils.diff_utils`.
         *   Extracts related issue numbers from PR title/body (`_parse_issue_numbers`).
     *   **`GitlabRetriever`**: Implements `Retriever` using the `python-gitlab` library.
         *   Initializes with a `Gitlab` client, project name/ID, and MR IID.
-        *   Maps `gitlab.v4.objects.ProjectMergeRequest`, `gitlab.v4.objects.Project`, etc., to `codedog` models.
+        *   Maps `gitlab.v4.objects.ProjectMergeRequest`, `gitlab.v4.objects.Project`, etc., to `codewatch` models.
         *   Handles differences in API responses (e.g., fetching diffs via `mr.diffs.list()` and then getting full diffs).
         *   Similar logic for parsing diffs and issues.
 *   **Interaction**: Instantiated at the start of the workflow with platform credentials and target PR details. Its primary output is the populated `PullRequest` model object.
 
-### 3.2. Processors (`codedog/processors/`)
+### 3.2. Processors (`codewatch/processors/`)
 
 *   **Purpose**: To process and prepare data, primarily the `PullRequest` object and its contents, for consumption by the LLM chains and reporters.
 *   **Design**:
     *   **`PullRequestProcessor`**: The main processor.
         *   `is_code_file`/`get_diff_code_files`: Filters `ChangeFile` objects to find relevant code files based on suffix and status (e.g., ignoring deleted files for review). Uses `SUPPORT_CODE_FILE_SUFFIX` and `SUFFIX_LANGUAGE_MAPPING`.
-        *   `gen_material_*` methods (`gen_material_change_files`, `gen_material_code_summaries`, `gen_material_pr_metadata`): Formats lists of `ChangeFile`s, `ChangeSummary`s, and PR metadata into structured text strings suitable for inclusion in LLM prompts, using templates from `codedog/templates`.
+        *   `gen_material_*` methods (`gen_material_change_files`, `gen_material_code_summaries`, `gen_material_pr_metadata`): Formats lists of `ChangeFile`s, `ChangeSummary`s, and PR metadata into structured text strings suitable for inclusion in LLM prompts, using templates from `codewatch/templates`.
         *   `build_change_summaries`: Maps the inputs and outputs of the code summary LLM chain back into `ChangeSummary` model objects.
         *   Uses `Localization` mixin to access language-specific templates.
 *   **Interaction**: Takes the `PullRequest` object from the Retriever and lists of `ChangeSummary` or `CodeReview` objects from the Chains. Produces formatted strings for LLM inputs and structured data for Reporters.
 
-### 3.3. Chains (`codedog/chains/`)
+### 3.3. Chains (`codewatch/chains/`)
 
 *   **Purpose**: Encapsulate the logic for interacting with LLMs using LangChain. Defines prompts, LLM calls, and parsing of LLM outputs.
 *   **Design**:
@@ -83,10 +83,10 @@ These models provide a platform-agnostic representation of the core Git concepts
         *   Inherit from the base chains (`CodeReviewChain`, `PRSummaryChain`).
         *   Add an additional `translate_chain` (`LLMChain` with `TRANSLATE_PROMPT`).
         *   Override `_process_result` (and `_aprocess_result`) to call the base method *first* and then pass the generated summaries/reviews through the `translate_chain` using `.apply` or `.aapply`.
-    *   **Prompts (`chains/.../prompts.py`)**: Define `PromptTemplate` objects, often importing base templates from `codedog/templates/grimoire_en.py` and sometimes injecting parser format instructions.
+    *   **Prompts (`chains/.../prompts.py`)**: Define `PromptTemplate` objects, often importing base templates from `codewatch/templates/grimoire_en.py` and sometimes injecting parser format instructions.
 *   **Interaction**: Takes processed data from the `PullRequestProcessor`. Invokes LLMs via `langchain-openai` (or potentially others). Outputs structured data (`PRSummary`, `list[ChangeSummary]`, `list[CodeReview]`).
 
-### 3.4. Templates (`codedog/templates/`) & Localization (`codedog/localization.py`)
+### 3.4. Templates (`codewatch/templates/`) & Localization (`codewatch/localization.py`)
 
 *   **Purpose**: Centralize all user-facing text (report formats) and LLM prompt instructions. Support multiple languages.
 *   **Design**:
@@ -98,7 +98,7 @@ These models provide a platform-agnostic representation of the core Git concepts
     *   Templates are used by `PullRequestProcessor` (for `gen_material_*`) and `actors/reporters` (for final report generation).
     *   The `Localization` mixin is used by Processors and Reporters to get language-specific text.
 
-### 3.5. Actors / Reporters (`codedog/actors/reporters/`)
+### 3.5. Actors / Reporters (`codewatch/actors/reporters/`)
 
 *   **Purpose**: Take the final processed data (LLM outputs packaged in models) and format it into the desired output format (currently Markdown).
 *   **Design**:
@@ -112,7 +112,7 @@ These models provide a platform-agnostic representation of the core Git concepts
         *   Combines their outputs into the final overall report using `template.REPORT_PR_REVIEW`, adding headers, footers, and telemetry information.
 *   **Interaction**: Consumes the output models from the Chains (`PRSummary`, `CodeReview`, etc.) and the original `PullRequest` data. Uses `templates` for formatting. Produces the final string output.
 
-### 3.6. Utilities (`codedog/utils/`)
+### 3.6. Utilities (`codewatch/utils/`)
 
 *   **Purpose**: Provide common helper functions used across different modules.
 *   **Design**:
@@ -131,7 +131,7 @@ A typical run (based on the Quickstart) follows these steps:
     *   Instantiate a platform client (e.g., `github.Github`).
     *   Instantiate the appropriate `Retriever` (e.g., `GithubRetriever`) with the client, repo, and PR number. The Retriever fetches initial data during init.
 2.  **LLM & Chain Setup**:
-    *   Load required LLMs using `codedog.utils.langchain_utils` (e.g., `load_gpt_llm`, `load_gpt4_llm`).
+    *   Load required LLMs using `codewatch.utils.langchain_utils` (e.g., `load_gpt_llm`, `load_gpt4_llm`).
     *   Instantiate the required `Chain` objects (e.g., `PRSummaryChain.from_llm(...)`, `CodeReviewChain.from_llm(...)`), passing in the loaded LLMs.
 3.  **Execute Chains**:
     *   Call the summary chain (e.g., `summary_chain({"pull_request": retriever.pull_request}, ...)`). This triggers the internal processing, LLM calls for code summaries, the main PR summary, and parsing. The result includes `pr_summary` (a `PRSummary` object) and `code_summaries` (a `list[ChangeSummary]`).
@@ -207,7 +207,7 @@ sequenceDiagram
 
 ## 5. Configuration
 
-*   Configuration is primarily handled via environment variables, loaded directly using `os.environ` (mainly in `codedog/utils/langchain_utils.py` for LLM keys/endpoints).
+*   Configuration is primarily handled via environment variables, loaded directly using `os.environ` (mainly in `codewatch/utils/langchain_utils.py` for LLM keys/endpoints).
 *   Platform tokens (GitHub/GitLab) are expected to be passed during client initialization, typically sourced from the environment by the calling script.
 
 ## 6. Design Choices & Considerations

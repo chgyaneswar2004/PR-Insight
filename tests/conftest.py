@@ -24,5 +24,5 @@ def mock_llm():
     return mock
 
 
-# Harmless comment added to trigger git diff for testing CodeDog review webhook
+# Harmless comment added to trigger git diff for testing CodeWatch review webhook
 

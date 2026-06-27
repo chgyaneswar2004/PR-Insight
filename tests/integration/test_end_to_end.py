@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from codedog.chains.pr_summary.base import PRSummaryChain
-from codedog.chains.code_review.base import CodeReviewChain
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.models import PRSummary, ChangeSummary, PullRequest, PRType, Repository
+from codewatch.chains.pr_summary.base import PRSummaryChain
+from codewatch.chains.code_review.base import CodeReviewChain
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.models import PRSummary, ChangeSummary, PullRequest, PRType, Repository
 
 
 class TestEndToEndFlow(unittest.TestCase):

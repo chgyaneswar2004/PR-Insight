@@ -16,14 +16,14 @@ from gitlab.v4.objects import ProjectMergeRequest
 from langchain_community.callbacks.manager import get_openai_callback
 from pydantic import BaseModel
 
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.chains.code_review.base import CodeReviewChain
-from codedog.chains.pr_summary.base import PRSummaryChain
-from codedog.retrievers.gitlab_retriever import GitlabRetriever
-from codedog.utils.langchain_utils import load_model_by_name
-from codedog.utils.email_utils import send_report_email
-from codedog.version import VERSION
-from codedog.config.settings import settings
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.chains.code_review.base import CodeReviewChain
+from codewatch.chains.pr_summary.base import PRSummaryChain
+from codewatch.retrievers.gitlab_retriever import GitlabRetriever
+from codewatch.utils.langchain_utils import load_model_by_name
+from codewatch.utils.email_utils import send_report_email
+from codewatch.version import VERSION
+from codewatch.config.settings import settings
 
 # config
 host = "127.0.0.1"
@@ -151,7 +151,7 @@ async def handle_event(retriever: GitlabRetriever, callback: Callable):
             email_addresses = [email.strip() for email in settings.notification_emails.split(",") if email.strip()]
             if email_addresses:
                 logging.info(f"Sending MR review report email to {', '.join(email_addresses)}")
-                subject = f"[CodeDog Webhook] MR #{retriever.pull_request.iid} Review: {retriever.pull_request.title}"
+                subject = f"[CodeWatch Webhook] MR #{retriever.pull_request.iid} Review: {retriever.pull_request.title}"
                 try:
                     await asyncio.to_thread(
                         send_report_email,

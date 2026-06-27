@@ -9,10 +9,10 @@ load_dotenv()
 from github import Github
 from langchain_core.callbacks import get_openai_callback
 
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.chains import CodeReviewChain, PRSummaryChain
-from codedog.retrievers import GithubRetriever
-from codedog.utils.langchain_utils import load_model_by_name
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.chains import CodeReviewChain, PRSummaryChain
+from codewatch.retrievers import GithubRetriever
+from codewatch.utils.langchain_utils import load_model_by_name
 
 # Load your GitHub token and create a client
 github_token = env.get("GITHUB_TOKEN", "")
@@ -91,7 +91,7 @@ def run():
     
     # Check if DeepSeek model is set to R1
     model_name = env.get("DEEPSEEK_MODEL", "deepseek-chat")
-    if model_name.lower() not in ["r1", "deepseek-r1", "codedog-r1"]:
+    if model_name.lower() not in ["r1", "deepseek-r1", "codewatch-r1"]:
         print(f"WARNING: DEEPSEEK_MODEL is set to '{model_name}', not specifically to 'deepseek-r1'")
         print("You may want to set DEEPSEEK_MODEL='deepseek-r1' in your .env file")
     

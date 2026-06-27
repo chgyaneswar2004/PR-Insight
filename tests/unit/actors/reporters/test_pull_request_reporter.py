@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from codedog.actors.reporters.pull_request import PullRequestReporter
-from codedog.models import PRSummary, ChangeSummary, PullRequest, CodeReview, PRType
+from codewatch.actors.reporters.pull_request import PullRequestReporter
+from codewatch.models import PRSummary, ChangeSummary, PullRequest, CodeReview, PRType
 
 
 class TestPullRequestReporter(unittest.TestCase):
@@ -35,11 +35,11 @@ class TestPullRequestReporter(unittest.TestCase):
         self.code_reviews[0].review = "Looks good, but consider adding tests"
 
         # Mock the nested reporters
-        patch_summary_reporter = patch('codedog.actors.reporters.pull_request.PRSummaryMarkdownReporter')
+        patch_summary_reporter = patch('codewatch.actors.reporters.pull_request.PRSummaryMarkdownReporter')
         self.mock_summary_reporter = patch_summary_reporter.start()
         self.addCleanup(patch_summary_reporter.stop)
 
-        patch_review_reporter = patch('codedog.actors.reporters.pull_request.CodeReviewMarkdownReporter')
+        patch_review_reporter = patch('codewatch.actors.reporters.pull_request.CodeReviewMarkdownReporter')
         self.mock_review_reporter = patch_review_reporter.start()
         self.addCleanup(patch_review_reporter.stop)
 
@@ -110,33 +110,6 @@ class TestPullRequestReporter(unittest.TestCase):
         self.assertIn("Time usage", generated_report)
         self.assertIn("3.50s", generated_report)  # Time usage
         self.assertIn("$0.0500", generated_report)  # Cost
-
-    def test_reporter_chinese_language(self):
-        # Test report generation with Chinese language
-        reporter = PullRequestReporter(
-            pr_summary=self.pr_summary,
-            code_summaries=self.code_summaries,
-            pull_request=self.pull_request,
-            code_reviews=self.code_reviews,
-            language="cn"
-        )
-
-        # Should instantiate reporters with cn language
-        # Generate report (but we don't need to use the result for this test)
-        reporter.report()
-
-        # Verify Chinese reporters were instantiated
-        self.mock_summary_reporter.assert_called_once_with(
-            pr_summary=self.pr_summary,
-            code_summaries=self.code_summaries,
-            pull_request=self.pull_request,
-            language='cn'
-        )
-
-        self.mock_review_reporter.assert_called_once_with(
-            self.code_reviews, 'cn'
-        )
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 from github import Github
 from github.PullRequest import PullRequest as GHPullRequest
 from github.Repository import Repository as GHRepo
-from codedog.retrievers.github_retriever import GithubRetriever
-from codedog.models import PullRequest, Repository, ChangeFile, ChangeStatus
+from codewatch.retrievers.github_retriever import GithubRetriever
+from codewatch.models import PullRequest, Repository, ChangeFile, ChangeStatus
 
 
 class TestGithubRetriever(unittest.TestCase):
@@ -85,7 +85,7 @@ class TestGithubRetriever(unittest.TestCase):
 
         # Create retriever instance with appropriate patches
         with patch.multiple(
-            'codedog.retrievers.github_retriever.GithubRetriever',
+            'codewatch.retrievers.github_retriever.GithubRetriever',
             _build_repository=MagicMock(return_value=self.mock_repository),
             _build_pull_request=MagicMock(return_value=self.mock_pull_request),
             _build_patched_file=MagicMock()
@@ -141,7 +141,7 @@ class TestGithubRetriever(unittest.TestCase):
         mock_github.get_repo.side_effect = Exception("API Error")
 
         with self.assertRaises(Exception):
-            with patch('codedog.retrievers.github_retriever.GithubRetriever._build_repository',
+            with patch('codewatch.retrievers.github_retriever.GithubRetriever._build_repository',
                        side_effect=Exception("API Error")):
                 # Just attempt to create the retriever which should raise the exception
                 GithubRetriever(mock_github, "test/repo", 42)

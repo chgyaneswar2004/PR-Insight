@@ -6,13 +6,13 @@ import { api } from '../lib/api';
 import { socketService } from '../lib/socket';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Play, ShieldAlert, Activity, GitCommit, Clock, CheckCircle2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Play, ShieldAlert, Activity, GitCommit, Clock, CheckCircle2, AlertTriangle, ArrowLeft, Code2, GitPullRequest } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
-import { AIChatWindow } from '../components/chat/AIChatWindow';
+import ReactMarkdown from 'react-markdown';
 
 export default function AIReview() {
   const { id } = useParams();
@@ -20,6 +20,9 @@ export default function AIReview() {
   const { activeReview, setActiveReview, agentLogs, addAgentLog, clearAgentLogs, isAgentRunning, setAgentRunning } = useAppStore();
   const [pr, setPr] = useState<any>(null);
   const [agentSteps, setAgentSteps] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'summary' | 'markdown' | 'diff'>('summary');
+  const [selectedDiffFile, setSelectedDiffFile] = useState<number>(0);
+  const [isMerging, setIsMerging] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -96,6 +99,22 @@ export default function AIReview() {
     }
   };
 
+  const handleMerge = async () => {
+    if (!window.confirm("Are you sure you want to merge this Pull Request?")) return;
+    try {
+      setIsMerging(true);
+      await api.put(`/prs/${id}/merge`, { mergeMethod: 'merge' });
+      if (pr) {
+        setPr({ ...pr, status: 'merged' });
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to merge Pull Request.');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
   const radarData = activeReview ? [
     { subject: 'Security', A: activeReview.dimensions.security, fullMark: 100 },
     { subject: 'Maintainability', A: activeReview.dimensions.maintainability, fullMark: 100 },
@@ -131,25 +150,52 @@ export default function AIReview() {
             </div>
           </div>
           
-          <Button 
-            onClick={startReview} 
-            disabled={isAgentRunning}
-            variant="gradient"
-            className="shrink-0 group relative overflow-hidden"
-          >
-            {isAgentRunning ? (
-              <span className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Analyzing...
-              </span>
+          <div className="flex items-center gap-3 shrink-0">
+            {pr.status === 'merged' ? (
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold bg-success/15 border border-success/30 text-success text-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                PR Merged
+              </div>
             ) : (
-              <span className="flex items-center gap-2">
-                <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                {activeReview ? 'Run Review Again' : 'Start AI Review'}
-              </span>
+              <Button
+                onClick={handleMerge}
+                disabled={isMerging || isAgentRunning}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center gap-2 group relative overflow-hidden"
+              >
+                {isMerging ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Merging...
+                  </>
+                ) : (
+                  <>
+                    <GitPullRequest className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    Merge Pull Request
+                  </>
+                )}
+              </Button>
             )}
-            {!isAgentRunning && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />}
-          </Button>
+
+            <Button 
+              onClick={startReview} 
+              disabled={isAgentRunning}
+              variant="gradient"
+              className="group relative overflow-hidden"
+            >
+              {isAgentRunning ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Analyzing...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  {activeReview ? 'Run Review Again' : 'Start AI Review'}
+                </span>
+              )}
+              {!isAgentRunning && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -257,159 +303,294 @@ export default function AIReview() {
                 </CardContent>
               </Card>
             )}
-
             {activeReview && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                {/* Score & Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="md:col-span-1 border-border relative overflow-hidden bg-gradient-to-br from-bg-card to-bg-elevated">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <Activity className="w-24 h-24" />
-                    </div>
-                    <CardContent className="p-6 relative z-10 flex flex-col items-center justify-center h-full">
-                      <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Quality Score</div>
-                      <div className="relative">
-                        <svg className="w-32 h-32 transform -rotate-90">
-                          <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-bg-secondary" />
-                          <circle 
-                            cx="64" cy="64" r="56" 
-                            stroke="currentColor" 
-                            strokeWidth="12" 
-                            fill="transparent" 
-                            strokeDasharray="351.8" 
-                            strokeDashoffset={351.8 - (351.8 * activeReview.overallScore) / 100} 
-                            className={cn(
-                              "transition-all duration-1000 ease-out",
-                              activeReview.overallScore >= 90 ? "text-success" : 
-                              activeReview.overallScore >= 70 ? "text-warning" : "text-error"
-                            )} 
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-3xl font-bold text-white">{activeReview.overallScore}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="md:col-span-2 border-border">
-                    <CardHeader>
-                      <CardTitle>AI Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-white/90 leading-relaxed bg-bg-elevated p-4 rounded-xl border border-border-light text-sm">
-                        {activeReview.summary}
-                      </p>
-                    </CardContent>
-                  </Card>
+              <div className="space-y-6">
+                {/* Tabs bar */}
+                <div className="flex border-b border-border bg-bg-primary/50 p-1 rounded-lg gap-2">
+                  <button
+                    onClick={() => setActiveTab('summary')}
+                    className={cn(
+                      "flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                      activeTab === 'summary'
+                        ? "bg-accent-purple text-white shadow-lg shadow-accent-purple/20"
+                        : "text-muted-foreground hover:text-white hover:bg-bg-elevated"
+                    )}
+                  >
+                    Review Summary
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('markdown')}
+                    className={cn(
+                      "flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                      activeTab === 'markdown'
+                        ? "bg-accent-purple text-white shadow-lg shadow-accent-purple/20"
+                        : "text-muted-foreground hover:text-white hover:bg-bg-elevated"
+                    )}
+                  >
+                    AI Report
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('diff')}
+                    className={cn(
+                      "flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                      activeTab === 'diff'
+                        ? "bg-accent-purple text-white shadow-lg shadow-accent-purple/20"
+                        : "text-muted-foreground hover:text-white hover:bg-bg-elevated"
+                    )}
+                  >
+                    Suggested Fixes (Diff)
+                  </button>
                 </div>
 
-                {/* Radar Chart */}
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle>Analysis Dimensions</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                          <PolarGrid stroke="#1E2D4A" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#6382B4', fontSize: 12 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                          <Radar name="Score" dataKey="A" stroke="#06B6D4" fill="#06B6D4" fillOpacity={0.3} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Issues List */}
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-error">
-                      <ShieldAlert className="w-5 h-5" />
-                      Security Vulnerabilities
-                      <span className="ml-auto bg-error/20 text-error text-xs font-bold px-2 py-1 rounded-full">
-                        {activeReview.securityIssues.length} found
-                      </span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {activeReview.securityIssues.map((issue: any) => (
-                      <div key={issue.id} className="bg-error/5 border border-error/20 rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            <div className="mt-1">
-                              {issue.severity === 'critical' ? <AlertTriangle className="w-5 h-5 text-error" /> : <ShieldAlert className="w-5 h-5 text-warning" />}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  {activeTab === 'summary' && (
+                    <div className="space-y-6">
+                      {/* Score & Summary */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card className="md:col-span-1 border-border relative overflow-hidden bg-gradient-to-br from-bg-card to-bg-elevated">
+                          <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Activity className="w-24 h-24" />
+                          </div>
+                          <CardContent className="p-6 relative z-10 flex flex-col items-center justify-center h-full">
+                            <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Quality Score</div>
+                            <div className="relative">
+                              <svg className="w-32 h-32 transform -rotate-90">
+                                <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-bg-secondary" />
+                                <circle 
+                                  cx="64" cy="64" r="56" 
+                                  stroke="currentColor" 
+                                  strokeWidth="12" 
+                                  fill="transparent" 
+                                  strokeDasharray="351.8" 
+                                  strokeDashoffset={351.8 - (351.8 * activeReview.overallScore) / 100} 
+                                  className={cn(
+                                    "transition-all duration-1000 ease-out",
+                                    activeReview.overallScore >= 90 ? "text-success" : 
+                                    activeReview.overallScore >= 70 ? "text-warning" : "text-error"
+                                  )} 
+                                />
+                              </svg>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <span className="text-3xl font-bold text-white">{activeReview.overallScore}</span>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-white">{issue.title}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>
-                              {issue.suggestion && (
-                                <div className="mt-3 bg-bg-primary/50 rounded-md p-3 border border-border">
-                                  <span className="text-xs font-semibold text-accent-cyan uppercase tracking-wider mb-1 block">AI Suggestion</span>
-                                  <p className="text-sm text-white/90">{issue.suggestion}</p>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="md:col-span-2 border-border">
+                          <CardHeader>
+                            <CardTitle>AI Summary</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-white/90 leading-relaxed bg-bg-elevated p-4 rounded-xl border border-border-light text-sm">
+                              {activeReview.summary}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Radar Chart */}
+                      <Card className="border-border">
+                        <CardHeader>
+                          <CardTitle>Analysis Dimensions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                                <PolarGrid stroke="#1E2D4A" />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#6382B4', fontSize: 12 }} />
+                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                <Radar name="Score" dataKey="A" stroke="#06B6D4" fill="#06B6D4" fillOpacity={0.3} />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Issues List */}
+                      <Card className="border-border">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2 text-error">
+                            <ShieldAlert className="w-5 h-5" />
+                            Security Vulnerabilities
+                            <span className="ml-auto bg-error/20 text-error text-xs font-bold px-2 py-1 rounded-full">
+                              {activeReview.securityIssues.length} found
+                            </span>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {activeReview.securityIssues.map((issue: any) => (
+                            <div key={issue.id} className="bg-error/5 border border-error/20 rounded-lg p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                  <div className="mt-1">
+                                    {issue.severity === 'critical' ? <AlertTriangle className="w-5 h-5 text-error" /> : <ShieldAlert className="w-5 h-5 text-warning" />}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-white">{issue.title}</h4>
+                                    <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>
+                                    {issue.suggestion && (
+                                      <div className="mt-3 bg-bg-primary/50 rounded-md p-3 border border-border">
+                                        <span className="text-xs font-semibold text-accent-cyan uppercase tracking-wider mb-1 block">AI Suggestion</span>
+                                        <p className="text-sm text-white/90">{issue.suggestion}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className={cn(
+                                  "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider shrink-0",
+                                  issue.severity === 'critical' ? "bg-error text-white" : "bg-warning/20 text-warning"
+                                )}>
+                                  {issue.severity}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          {activeReview.securityIssues.length === 0 && (
+                            <div className="text-center py-6 text-success flex items-center justify-center gap-2">
+                              <CheckCircle2 className="w-5 h-5" />
+                              No security vulnerabilities detected.
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {activeTab === 'markdown' && (
+                    <Card className="border-border">
+                      <CardHeader>
+                        <CardTitle>Detailed AI Report</CardTitle>
+                      </CardHeader>
+                      <CardContent className="max-h-[600px] overflow-y-auto">
+                        {activeReview.rawMarkdown ? (
+                          <div className="prose prose-invert max-w-none text-white/90">
+                            <ReactMarkdown
+                              components={{
+                                h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-white mt-6 mb-4" {...props} />,
+                                h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-white mt-5 mb-3 border-b border-border/30 pb-1" {...props} />,
+                                h3: ({node, ...props}) => <h3 className="text-lg font-medium text-white mt-4 mb-2" {...props} />,
+                                p: ({node, ...props}) => <p className="text-sm text-white/80 leading-relaxed mb-4" {...props} />,
+                                ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1.5 mb-4 text-sm text-white/70" {...props} />,
+                                ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1.5 mb-4 text-sm text-white/70" {...props} />,
+                                li: ({node, ...props}) => <li className="text-sm text-white/85" {...props} />,
+                                code: ({node, inline, className, children, ...props}: any) => {
+                                  return inline ? (
+                                    <code className="bg-bg-elevated text-accent-cyan px-1.5 py-0.5 rounded font-mono text-xs" {...props}>{children}</code>
+                                  ) : (
+                                    <pre className="bg-black/50 border border-border rounded-lg p-4 font-mono text-xs text-white overflow-x-auto my-4">
+                                      <code {...props}>{children}</code>
+                                    </pre>
+                                  );
+                                },
+                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-accent-purple pl-4 italic text-muted-foreground my-4" {...props} />,
+                                table: ({node, ...props}) => (
+                                  <div className="overflow-x-auto my-6">
+                                    <table className="w-full border-collapse border border-border text-sm text-white/80" {...props} />
+                                  </div>
+                                ),
+                                th: ({node, ...props}) => <th className="border border-border bg-bg-elevated/40 px-4 py-2 text-left font-semibold" {...props} />,
+                                td: ({node, ...props}) => <td className="border border-border px-4 py-2" {...props} />
+                              }}
+                            >
+                              {activeReview.rawMarkdown}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-muted-foreground text-sm">
+                            No detailed report available. Run a new review to generate one.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {activeTab === 'diff' && (
+                    <Card className="border-border overflow-hidden">
+                      <CardHeader className="border-b border-border bg-bg-elevated/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <CardTitle className="flex items-center gap-2">
+                          <Code2 className="w-5 h-5 text-muted-foreground" />
+                          Suggested Fixes
+                        </CardTitle>
+                        {(() => {
+                          const diffs = Array.isArray(activeReview.codeDiff)
+                            ? activeReview.codeDiff
+                            : activeReview.codeDiff
+                              ? [{ filename: 'PR Diff', oldCode: activeReview.codeDiff.oldCode, newCode: activeReview.codeDiff.newCode }]
+                              : [];
+                          
+                          if (diffs.length > 1) {
+                            return (
+                              <select
+                                value={selectedDiffFile}
+                                onChange={(e) => setSelectedDiffFile(parseInt(e.target.value))}
+                                className="bg-bg-elevated text-sm border border-border rounded px-3 py-1.5 text-white outline-none focus:border-accent-purple transition-colors max-w-xs md:max-w-md truncate"
+                              >
+                                {diffs.map((file: any, index: number) => (
+                                  <option key={index} value={index}>
+                                    {file.filename}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {(() => {
+                          const diffs = Array.isArray(activeReview.codeDiff)
+                            ? activeReview.codeDiff
+                            : activeReview.codeDiff
+                              ? [{ filename: 'PR Diff', oldCode: activeReview.codeDiff.oldCode, newCode: activeReview.codeDiff.newCode }]
+                              : [];
+                          
+                          if (diffs.length === 0) {
+                            return (
+                              <div className="text-center py-12 text-muted-foreground text-sm">
+                                No code suggestions or diff available.
+                              </div>
+                            );
+                          }
+                          
+                          const selectedDiff = diffs[selectedDiffFile] || diffs[0];
+                          if (!selectedDiff) return null;
+                          
+                          return (
+                            <div className="text-sm">
+                              {diffs.length > 1 && (
+                                <div className="px-4 py-2 bg-bg-elevated/10 border-b border-border text-xs text-muted-foreground font-mono truncate">
+                                  File: {selectedDiff.filename}
                                 </div>
                               )}
+                              <ReactDiffViewer
+                                oldValue={selectedDiff.oldCode}
+                                newValue={selectedDiff.newCode}
+                                splitView={true}
+                                useDarkTheme={true}
+                                styles={{
+                                  variables: {
+                                    dark: {
+                                      diffViewerBackground: '#0B1222',
+                                      addedBackground: 'rgba(34, 197, 94, 0.1)',
+                                      removedBackground: 'rgba(239, 68, 68, 0.1)',
+                                      wordAddedBackground: 'rgba(34, 197, 94, 0.25)',
+                                      wordRemovedBackground: 'rgba(239, 68, 68, 0.25)',
+                                      emptyLineBackground: '#0B1222',
+                                    }
+                                  }
+                                }}
+                              />
                             </div>
-                          </div>
-                          <span className={cn(
-                            "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider shrink-0",
-                            issue.severity === 'critical' ? "bg-error text-white" : "bg-warning/20 text-warning"
-                          )}>
-                            {issue.severity}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    {activeReview.securityIssues.length === 0 && (
-                      <div className="text-center py-6 text-success flex items-center justify-center gap-2">
-                        <CheckCircle2 className="w-5 h-5" />
-                        No security vulnerabilities detected.
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                          );
+                        })()}
+                      </CardContent>
+                    </Card>
+                  )}
+                </motion.div>
 
-                {/* Code Diff (if available) */}
-                {activeReview.codeDiff && (
-                  <Card className="border-border overflow-hidden">
-                    <CardHeader className="border-b border-border bg-bg-elevated/30">
-                      <CardTitle className="flex items-center gap-2">
-                        <Code2 className="w-5 h-5 text-muted-foreground" />
-                        Suggested Fixes
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="text-sm">
-                        <ReactDiffViewer
-                          oldValue={activeReview.codeDiff.oldCode}
-                          newValue={activeReview.codeDiff.newCode}
-                          splitView={true}
-                          useDarkTheme={true}
-                          styles={{
-                            variables: {
-                              dark: {
-                                diffViewerBackground: '#0B1222',
-                                addedBackground: 'rgba(34, 197, 94, 0.1)',
-                                removedBackground: 'rgba(239, 68, 68, 0.1)',
-                                wordAddedBackground: 'rgba(34, 197, 94, 0.25)',
-                                wordRemovedBackground: 'rgba(239, 68, 68, 0.25)',
-                                emptyLineBackground: '#0B1222',
-                              }
-                            }
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* AI Chat Assistant */}
-                <div className="h-[450px]">
-                  <AIChatWindow prId={id || ''} />
-                </div>
-              </motion.div>
+              </div>
             )}
           </div>
         </div>
@@ -417,6 +598,3 @@ export default function AIReview() {
     </Layout>
   );
 }
-
-// Ensure Code2 is imported for the diff header
-import { Code2 } from 'lucide-react';

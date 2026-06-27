@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 from langchain.chains import LLMChain
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.output_parsers import BaseOutputParser
-from codedog.chains.pr_summary.base import PRSummaryChain
-from codedog.models import PullRequest, PRSummary, ChangeSummary, PRType
+from codewatch.chains.pr_summary.base import PRSummaryChain
+from codewatch.models import PullRequest, PRSummary, ChangeSummary, PRType
 
 
 class TestPRSummaryChain(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestPRSummaryChain(unittest.TestCase):
         self.mock_pr.change_files = []
 
         # Mock processor
-        patcher = patch('codedog.chains.pr_summary.base.processor')
+        patcher = patch('codewatch.chains.pr_summary.base.processor')
         self.mock_processor = patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -103,7 +103,7 @@ class TestPRSummaryChain(unittest.TestCase):
         # Skip this test since it's hard to test async methods properly in this context
         pass
 
-    @patch('codedog.chains.pr_summary.translate_pr_summary_chain.TranslatePRSummaryChain')
+    @patch('codewatch.chains.pr_summary.translate_pr_summary_chain.TranslatePRSummaryChain')
     def test_output_parser_failure(self, mock_translate_chain):
         # Create a failing parser
         class FailingParser(BaseOutputParser):

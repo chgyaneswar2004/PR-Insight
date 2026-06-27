@@ -1,7 +1,7 @@
 # Codedog: AI-Powered Code Review Assistant
 
-[![Python Version](https://img.shields.io/pypi/pyversions/codedog)](https://pypi.org/project/codedog/)
-[![PyPI Version](https://img.shields.io/pypi/v/codedog.svg)](https://pypi.org/project/codedog/)
+[![Python Version](https://img.shields.io/pypi/pyversions/codewatch)](https://pypi.org/project/codewatch/)
+[![PyPI Version](https://img.shields.io/pypi/v/codewatch.svg)](https://pypi.org/project/codewatch/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Codedog leverages Large Language Models (LLMs) like GPT to automatically review your pull requests on platforms like GitHub and GitLab, providing summaries and potential suggestions.
@@ -34,8 +34,8 @@ Codedog leverages Large Language Models (LLMs) like GPT to automatically review 
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/codedog-ai/codedog.git # Or your fork
-    cd codedog
+    git clone https://github.com/codewatch-ai/codewatch.git # Or your fork
+    cd codewatch
     ```
 
 2.  **Configure Python Version (if needed)**:
@@ -124,14 +124,14 @@ SMTP_PASSWORD="your_app_password"  # For Gmail, you must use an App Password, se
 
 ## Running the Example (Quickstart)
 
-The `README.md` in the project root (and `codedog/__init__.py`) contains a Python script demonstrating the core workflow.
+The `README.md` in the project root (and `codewatch/__init__.py`) contains a Python script demonstrating the core workflow.
 
-1.  **Save the Quickstart Code**: Copy the Python code from the quickstart section into a file, e.g., `run_codedog.py`.
+1.  **Save the Quickstart Code**: Copy the Python code from the quickstart section into a file, e.g., `run_codewatch.py`.
 
 2.  **Update Placeholders**: Modify the script with:
     *   Your actual GitHub/GitLab token.
     *   Your OpenAI/Azure API key and relevant details.
-    *   The target repository (e.g., `"codedog-ai/codedog"` or your fork/project).
+    *   The target repository (e.g., `"codewatch-ai/codewatch"` or your fork/project).
     *   The target Pull Request / Merge Request number/iid.
 
 3.  **Load Environment Variables**: If using a `.env` file, ensure it's loaded. You might need to add `from dotenv import load_dotenv; load_dotenv()` at the beginning of your script.
@@ -139,13 +139,13 @@ The `README.md` in the project root (and `codedog/__init__.py`) contains a Pytho
 4.  **Run the Script**: Execute the script within the Poetry environment:
     ```bash
     # For GitHub PR review
-    poetry run python run_codedog.py pr "owner/repo" 123
+    poetry run python run_codewatch.py pr "owner/repo" 123
 
     # For GitLab MR review
-    poetry run python run_codedog.py pr "owner/repo" 123 --platform gitlab
+    poetry run python run_codewatch.py pr "owner/repo" 123 --platform gitlab
 
     # For GitLab MR review with custom GitLab instance
-    poetry run python run_codedog.py pr "owner/repo" 123 --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
+    poetry run python run_codewatch.py pr "owner/repo" 123 --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
     ```
 
 This will:
@@ -169,14 +169,14 @@ Codedog fully supports GitLab integration for reviewing merge requests. This fea
 
 3. **Run GitLab MR Review**: Use the following command to review a GitLab merge request:
    ```bash
-   python run_codedog.py pr "owner/repo" 123 --platform gitlab
+   python run_codewatch.py pr "owner/repo" 123 --platform gitlab
    ```
 
    Replace `owner/repo` with your GitLab project path and `123` with your merge request IID.
 
 4. **Self-hosted GitLab**: If you're using a self-hosted GitLab instance, specify the URL:
    ```bash
-   python run_codedog.py pr "owner/repo" 123 --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
+   python run_codewatch.py pr "owner/repo" 123 --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
    ```
 
 ## Running Tests
@@ -203,5 +203,6 @@ Contributions are welcome! Please refer to the project's contribution guidelines
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-\ n #   N g r o k   T e s t  
+\ n #   N g r o k   T e s t 
+ 
  
