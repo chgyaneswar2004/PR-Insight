@@ -776,6 +776,68 @@ export function createRouter(io, anthropicClient) {
           : 85,
         ...analyticsData.metrics,
       });
+  });
+
+  router.put('/prs/:id/merge', async (req, res) => {
+    try {
+      const isProd = await isProductionMode();
+      if (!isProd) {
+        // Mock update in dev state
+        const prIndex = pullRequests.findIndex(p => p.id === req.params.id);
+        if (prIndex !== -1) {
+          pullRequests[prIndex].status = 'merged';
+        }
+        return res.json({ success: true, message: 'PR merged (simulated)' });
+      }
+
+      // Get PR details from DB
+      const prResult = await db.query(
+        'SELECT p.*, r.full_name FROM pull_requests p JOIN repositories r ON r.id = p.repo_id WHERE p.id = $1 AND p.user_id = $2',
+        [req.params.id, req.user.id]
+      );
+      if (prResult.rows.length === 0) return res.status(404).json({ error: 'PR not found' });
+      const pr = prResult.rows[0];
+
+      // Get GitHub token
+      const credentials = await getUserCredentials(req.user.id);
+      const githubToken = credentials['GITHUB_TOKEN'];
+      if (!githubToken) {
+        return res.status(400).json({ error: 'GitHub credentials not found. Please setup integration.' });
+      }
+
+      // Merge PR on GitHub
+      const { mergeMethod = 'merge' } = req.body;
+      const mergeRes = await fetch(`https://api.github.com/repos/${pr.full_name}/pulls/${pr.number}/merge`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'User-Agent': 'PR-Insight',
+          'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({
+          merge_method: mergeMethod,
+          commit_title: `Merge PR #${pr.number} via PR-Insight`,
+          commit_message: `Merged automatically via PR-Insight AI Review dashboard.`
+        })
+      });
+
+      if (!mergeRes.ok) {
+        const errText = await mergeRes.text();
+        return res.status(mergeRes.status).json({ error: `GitHub API error: ${errText}` });
+      }
+
+      const mergeData = await mergeRes.json();
+      
+      // Update PR status in DB
+      await db.query(
+        "UPDATE pull_requests SET status = 'merged', updated_at = NOW() WHERE id = $1 AND user_id = $2",
+        [req.params.id, req.user.id]
+      );
+
+      res.json({ success: true, message: mergeData.message || 'PR merged successfully' });
+    } catch (err) {
+      console.error('Error merging PR:', err);
+      res.status(500).json({ error: err.message });
     }
   });
 

@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { socketService } from '../lib/socket';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Play, ShieldAlert, Activity, GitCommit, Clock, CheckCircle2, AlertTriangle, ArrowLeft, Code2 } from 'lucide-react';
+import { Play, ShieldAlert, Activity, GitCommit, Clock, CheckCircle2, AlertTriangle, ArrowLeft, Code2, GitPullRequest } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { formatDistanceToNow } from 'date-fns';
@@ -22,6 +22,7 @@ export default function AIReview() {
   const [agentSteps, setAgentSteps] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'summary' | 'markdown' | 'diff'>('summary');
   const [selectedDiffFile, setSelectedDiffFile] = useState<number>(0);
+  const [isMerging, setIsMerging] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -98,6 +99,22 @@ export default function AIReview() {
     }
   };
 
+  const handleMerge = async () => {
+    if (!window.confirm("Are you sure you want to merge this Pull Request?")) return;
+    try {
+      setIsMerging(true);
+      await api.put(`/prs/${id}/merge`, { mergeMethod: 'merge' });
+      if (pr) {
+        setPr({ ...pr, status: 'merged' });
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to merge Pull Request.');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
   const radarData = activeReview ? [
     { subject: 'Security', A: activeReview.dimensions.security, fullMark: 100 },
     { subject: 'Maintainability', A: activeReview.dimensions.maintainability, fullMark: 100 },
@@ -133,25 +150,52 @@ export default function AIReview() {
             </div>
           </div>
           
-          <Button 
-            onClick={startReview} 
-            disabled={isAgentRunning}
-            variant="gradient"
-            className="shrink-0 group relative overflow-hidden"
-          >
-            {isAgentRunning ? (
-              <span className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Analyzing...
-              </span>
+          <div className="flex items-center gap-3 shrink-0">
+            {pr.status === 'merged' ? (
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold bg-success/15 border border-success/30 text-success text-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                PR Merged
+              </div>
             ) : (
-              <span className="flex items-center gap-2">
-                <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                {activeReview ? 'Run Review Again' : 'Start AI Review'}
-              </span>
+              <Button
+                onClick={handleMerge}
+                disabled={isMerging || isAgentRunning}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center gap-2 group relative overflow-hidden"
+              >
+                {isMerging ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Merging...
+                  </>
+                ) : (
+                  <>
+                    <GitPullRequest className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    Merge Pull Request
+                  </>
+                )}
+              </Button>
             )}
-            {!isAgentRunning && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />}
-          </Button>
+
+            <Button 
+              onClick={startReview} 
+              disabled={isAgentRunning}
+              variant="gradient"
+              className="group relative overflow-hidden"
+            >
+              {isAgentRunning ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Analyzing...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Play className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  {activeReview ? 'Run Review Again' : 'Start AI Review'}
+                </span>
+              )}
+              {!isAgentRunning && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
