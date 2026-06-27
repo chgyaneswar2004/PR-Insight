@@ -82,8 +82,15 @@ def extract_issues(code_reviews):
     return security_issues, quality_issues, performance_issues, doc_suggestions
 
 def extract_diff_data(code_reviews):
+    files_diff = []
+    seen_files = set()
     for cr in code_reviews:
         if hasattr(cr, 'file') and hasattr(cr.file, 'diff_content') and cr.file.diff_content:
+            file_name = cr.file.full_name if hasattr(cr.file, 'full_name') else "Unknown"
+            if file_name in seen_files:
+                continue
+            seen_files.add(file_name)
+            
             diff_text = cr.file.diff_content.content
             if not diff_text:
                 continue
@@ -103,11 +110,12 @@ def extract_diff_data(code_reviews):
                     old_lines.append(content)
                     new_lines.append(content)
             
-            return {
+            files_diff.append({
+                "filename": file_name,
                 "oldCode": '\n'.join(old_lines),
                 "newCode": '\n'.join(new_lines)
-            }
-    return None
+            })
+    return files_diff
 
 def get_llm_clients(credentials: dict):
     tier = credentials.get("LLM_TIER") or os.environ.get("LLM_TIER", "free")
