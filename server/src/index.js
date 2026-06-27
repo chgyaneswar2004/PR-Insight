@@ -4,11 +4,16 @@ import { Server as SocketIO } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
+import cookieParser from 'cookie-parser';
 import { createRouter } from './routes/api.js';
 import { createWebhookRouter } from './routes/webhook.js';
+import authRouter from './routes/auth.js';
+import setupRouter from './routes/setup.js';
+import adminRouter from './routes/admin.js';
+import { authenticate, requireAuth, requireSetup } from './middleware/authenticate.js';
 
 dotenv.config();
-
+// Reloading env variables on watch
 const app = express();
 const httpServer = createServer(app);
 
@@ -26,16 +31,21 @@ if (process.env.ANTHROPIC_API_KEY) {
   anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   console.log('✓ Claude AI connected');
 } else {
-  console.log('⚠ Running without Claude AI (set ANTHROPIC_API_KEY for AI features)');
+  console.log('⚠️ Running without Claude AI (set ANTHROPIC_API_KEY for AI features)');
 }
 
 // Middleware
 app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3000'], credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
+app.use(authenticate);
 
 // Routes
-app.use('/api', createRouter(io, anthropicClient));
+app.use('/auth', authRouter);
 app.use('/api/webhook', createWebhookRouter(io));
+app.use('/api/setup', requireAuth, setupRouter);
+app.use('/api/admin', requireAuth, adminRouter);
+app.use('/api', requireAuth, requireSetup, createRouter(io, anthropicClient));
 
 
 // Health check

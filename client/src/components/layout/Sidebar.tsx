@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   GitPullRequest, 
@@ -7,10 +8,13 @@ import {
   Settings, 
   LogOut,
   Bell,
-  Code2
+  Code2,
+  Shield,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
 
 interface SidebarProps {
   onToggleNotifications: () => void;
@@ -19,14 +23,32 @@ interface SidebarProps {
 export function Sidebar({ onToggleNotifications }: SidebarProps) {
   const location = useLocation();
   const { notifications } = useAppStore();
+  const { user, logout } = useAuthStore();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
   const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const links = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Repositories', path: '/repos', icon: Folders },
     { name: 'Pull Requests', path: '/prs', icon: GitPullRequest },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { 
+      name: user?.role === 'admin' ? 'Admin Settings' : 'Settings', 
+      path: '/settings', 
+      icon: Settings 
+    },
   ];
 
   return (
@@ -63,10 +85,10 @@ export function Sidebar({ onToggleNotifications }: SidebarProps) {
         })}
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border relative" ref={dropdownRef}>
         <button 
           onClick={onToggleNotifications}
-          className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-bg-elevated hover:text-white transition-all duration-200 mb-2"
+          className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-bg-elevated hover:text-white transition-all duration-200 mb-4"
         >
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -83,14 +105,57 @@ export function Sidebar({ onToggleNotifications }: SidebarProps) {
             </span>
           )}
         </button>
-        
-        <Link
-          to="/login"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-error/10 hover:text-error transition-all duration-200"
-        >
-          <LogOut className="w-5 h-5" />
-          Logout
-        </Link>
+
+        {dropdownOpen && (
+          <div className="absolute bottom-16 left-4 right-4 bg-bg-card border border-border rounded-lg shadow-xl py-1 z-50 overflow-hidden glass-card">
+            <Link
+              to="/settings"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-bg-elevated transition-colors"
+            >
+              <Settings className="w-4 h-4 text-accent-cyan" />
+              {user?.role === 'admin' ? 'Admin Settings' : 'Settings'}
+            </Link>
+            <button
+              onClick={async () => {
+                setDropdownOpen(false);
+                await logout();
+              }}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-error hover:bg-error/10 transition-colors text-left"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        )}
+
+        {user && (
+          <div 
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center justify-between p-2 rounded-lg hover:bg-bg-elevated cursor-pointer transition-colors border border-transparent hover:border-border"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <img 
+                src={user.avatarUrl} 
+                alt={user.username} 
+                className="w-9 h-9 rounded-full border border-border"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate">@{user.username}</p>
+                <div className="flex items-center gap-1">
+                  {user.role === 'admin' ? (
+                    <span className="text-[10px] text-accent-cyan font-semibold flex items-center gap-0.5">
+                      <Shield className="w-3 h-3" /> Admin
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground font-medium">Member</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <ChevronUp className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", dropdownOpen && "rotate-180")} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -432,13 +432,15 @@ from codedog.config.settings import settings
 
 class RateLimitedChatOpenAI(ChatOpenAI):
     def _generate(self, *args, **kwargs):
-        logger.info("Throttling LLM request: sleeping 12s to avoid rate limits...")
-        time.sleep(12)
+        if os.environ.get("CODEDOG_THROTTLE", "true") == "true":
+            logger.info("Throttling LLM request: sleeping 12s to avoid rate limits...")
+            time.sleep(12)
         return super()._generate(*args, **kwargs)
 
     async def _agenerate(self, *args, **kwargs):
-        logger.info("Throttling LLM request (async): sleeping 12s to avoid rate limits...")
-        await asyncio.sleep(12)
+        if os.environ.get("CODEDOG_THROTTLE", "true") == "true":
+            logger.info("Throttling LLM request (async): sleeping 12s to avoid rate limits...")
+            await asyncio.sleep(12)
         return await super()._agenerate(*args, **kwargs)
 
 
@@ -561,25 +563,66 @@ def load_deepseek_r1_llm():
 
 
 
-def load_model_by_name(model_name: str) -> BaseChatModel:
+def load_model_by_name(model_name: str, credentials: Optional[dict] = None) -> BaseChatModel:
     """Load a model by name
+ 
+     Args:
+         model_name: The name of the model to load.
+         credentials: Optional user credentials dictionary
+ 
+     Returns:
+         BaseChatModel: The loaded model
+     """
+    if credentials:
+        api_key = credentials.get("LLM_API_KEY")
+        provider = credentials.get("LLM_PROVIDER", "").lower()
+        
+        if model_name.startswith("gemini-") or provider == "gemini":
+            if not api_key:
+                raise ValueError("Gemini API key is missing from user credentials.")
+            logger.info(f"Initializing user model '{model_name}' using Google Gemini OpenAI-compatible endpoint")
+            return RateLimitedChatOpenAI(
+                api_key=api_key,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                model=model_name if model_name.startswith("gemini-") else "gemini-1.5-flash",
+                temperature=0,
+                max_retries=30,
+            )
+            
+        if model_name.startswith("deepseek") or provider == "deepseek":
+            if not api_key:
+                raise ValueError("DeepSeek API key is missing from user credentials.")
+            logger.info(f"Initializing user model '{model_name}' for DeepSeek")
+            if "r1" in model_name.lower():
+                return DeepSeekR1Model(
+                    api_key=api_key,
+                    model_name=model_name,
+                    api_base="https://api.deepseek.com",
+                    temperature=0.0,
+                    max_tokens=4096,
+                    top_p=0.95,
+                )
+            else:
+                return DeepSeekChatModel(
+                    api_key=api_key,
+                    model_name=model_name,
+                    api_base="https://api.deepseek.com",
+                    temperature=0.0,
+                    max_tokens=4096,
+                    top_p=0.95,
+                )
+                
+        # Default fallback to OpenAI
+        if not api_key:
+            raise ValueError("LLM API key is missing from user credentials.")
+        logger.info(f"Initializing user model '{model_name}' as standard OpenAI model")
+        return RateLimitedChatOpenAI(
+            api_key=api_key,
+            model=model_name if model_name.startswith("gpt-") else "gpt-4o",
+            temperature=0,
+            max_retries=30,
+        )
 
-    Args:
-        model_name: The name of the model to load. Can be:
-            - "gpt-3.5" or any string starting with "gpt-3" for GPT-3.5 models
-            - "gpt-4" or any string starting with "gpt-4" (except gpt-4o) for GPT-4 models
-            - "gpt-4o" or "4o" for GPT-4o models
-            - "deepseek" for DeepSeek models
-            - "deepseek-r1" for DeepSeek R1 models
-            - "gemini-*" (e.g. gemini-1.5-flash) for Google Gemini models
-            - Any full OpenAI model name (e.g., "gpt-3.5-turbo-16k", "gpt-4-turbo", etc.)
-
-    Returns:
-        BaseChatModel: The loaded model
-
-    Raises:
-        ValueError: If the model name is not recognized
-    """
     if model_name.startswith("gemini-"):
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if not gemini_key:
@@ -592,7 +635,7 @@ def load_model_by_name(model_name: str) -> BaseChatModel:
             temperature=0,
             max_retries=30,
         )
-
+ 
     # Define standard model loaders
     model_loaders = {
         "gpt-3.5": load_gpt_llm,
@@ -602,11 +645,11 @@ def load_model_by_name(model_name: str) -> BaseChatModel:
         "deepseek": load_deepseek_llm,
         "deepseek-r1": load_deepseek_r1_llm,
     }
-
+ 
     # Check for exact matches first
     if model_name in model_loaders:
         return model_loaders[model_name]()
-
+ 
     # Handle OpenAI model names with pattern matching
     if model_name.startswith("gpt-"):
         # Handle GPT-4o models
@@ -622,7 +665,7 @@ def load_model_by_name(model_name: str) -> BaseChatModel:
         else:
             logger.warning(f"Unrecognized GPT model name: {model_name}, defaulting to GPT-3.5")
             return load_gpt_llm()
-
+ 
     # Try generic OpenAI compatible model loading for unrecognized model names (e.g. Nvidia/Groq models)
     try:
         logger.info(f"Initializing unrecognized model '{model_name}' as standard OpenAI-compatible ChatOpenAI model")

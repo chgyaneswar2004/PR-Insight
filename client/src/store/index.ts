@@ -27,6 +27,10 @@ interface AppState {
   setAgentRunning: (status: boolean) => void;
   clearAgentLogs: () => void;
   sendChatMessage: (prId: string, content: string) => Promise<void>;
+  stats: any | null;
+  analytics: any | null;
+  fetchStats: () => Promise<void>;
+  fetchAnalytics: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -40,6 +44,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoadingPRs: false,
   isAgentRunning: false,
   isChatTyping: false,
+  stats: null,
+  analytics: null,
 
   fetchRepos: async () => {
     set({ isLoadingRepos: true });
@@ -63,6 +69,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('Failed to fetch PRs', error);
     } finally {
       set({ isLoadingPRs: false });
+    }
+  },
+
+  fetchStats: async () => {
+    try {
+      const data: any = await api.get('/dashboard/stats');
+      set({ stats: data });
+    } catch (error) {
+      console.error('Failed to fetch stats', error);
+    }
+  },
+
+  fetchAnalytics: async () => {
+    try {
+      const data: any = await api.get('/analytics');
+      set({ analytics: data });
+    } catch (error) {
+      console.error('Failed to fetch analytics', error);
     }
   },
 

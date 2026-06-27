@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import * as db from '../db/client.js';
 import { triggerCodeWatchReview } from '../services/codewatchBridge.js';
+import { getUserCredentials } from '../services/credentialsManager.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export function createWebhookRouter(io) {
@@ -49,11 +50,20 @@ export function createWebhookRouter(io) {
 
       const branchName = ref.replace('refs/heads/', '');
       const repoFullName = repository.full_name;
-      const token = process.env.GITHUB_TOKEN;
+
+      const repoRes = await db.query('SELECT user_id FROM repositories WHERE full_name = $1', [repoFullName]);
+      if (repoRes.rows.length === 0) {
+        console.warn(`[Push Webhook] Repository ${repoFullName} is not registered by any user.`);
+        return res.status(404).json({ error: 'Repo not registered' });
+      }
+
+      const userId = repoRes.rows[0].user_id;
+      const credentials = await getUserCredentials(userId);
+      const token = credentials['GITHUB_TOKEN'];
 
       if (!token) {
-        console.error('Error: GITHUB_TOKEN is not configured in environment');
-        return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
+        console.error('Error: GITHUB_TOKEN is not configured for user', userId);
+        return res.status(500).json({ error: 'GITHUB_TOKEN not configured for user' });
       }
 
       console.log(`[Push Webhook] Processing push to branch '${branchName}' in repository '${repoFullName}'...`);
@@ -82,7 +92,6 @@ export function createWebhookRouter(io) {
           console.log(`[Push Webhook] Automatically created PR #${data.number} for branch '${branchName}'`);
           return res.json({ message: 'PR automatically created', prNumber: data.number, prUrl: data.html_url });
         } else if (response.status === 422) {
-          // GitHub API returns 422 if PR already exists
           const errorMsg = data.errors?.[0]?.message || '';
           if (errorMsg.includes('A pull request already exists') || errorMsg.includes('already exists')) {
             console.log(`[Push Webhook] PR already exists for branch '${branchName}', skipping creation.`);
@@ -110,7 +119,6 @@ export function createWebhookRouter(io) {
       return res.status(400).json({ error: 'Invalid payload' });
     }
 
-    // Process only 'opened' and 'synchronize' (update) actions
     if (action !== 'opened' && action !== 'synchronize') {
       return res.json({ message: `Action '${action}' ignored` });
     }
@@ -118,74 +126,81 @@ export function createWebhookRouter(io) {
     try {
       const repoFullName = repository.full_name;
       const prNumber = pull_request.number;
-      const repoName = repository.name;
-      const repoLanguage = repository.language || 'JavaScript';
 
-      // Find or insert Repository
-      let repoId;
-      const repoRes = await db.query('SELECT id FROM repositories WHERE full_name = $1', [repoFullName]);
-      if (repoRes.rows.length > 0) {
-        repoId = repoRes.rows[0].id;
-      } else {
-        const insertRepoRes = await db.query(
-          'INSERT INTO repositories (name, full_name, language, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING id',
-          [repoName, repoFullName, repoLanguage]
-        );
-        repoId = insertRepoRes.rows[0].id;
+      // Find all users who have registered this repository
+      const repoQueryRes = await db.query('SELECT id, user_id FROM repositories WHERE full_name = $1', [repoFullName]);
+      if (repoQueryRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Repo not registered' });
       }
 
-      // Find or insert Pull Request record in database
-      let prUUID;
-      const prRes = await db.query('SELECT id FROM pull_requests WHERE repo_id = $1 AND number = $2', [repoId, prNumber]);
-      
-      const author = {
-        login: pull_request.user?.login || 'unknown',
-        avatar: pull_request.user?.avatar_url || null
-      };
+      console.log(`[Webhook] Processing review for repository '${repoFullName}' PR #${prNumber} across ${repoQueryRes.rows.length} users...`);
 
-      if (prRes.rows.length > 0) {
-        prUUID = prRes.rows[0].id;
-        await db.query(
-          `UPDATE pull_requests 
-           SET title = $1, author = $2, status = 'pending', files = $3, additions = $4, deletions = $5,
-               has_review = false, updated_at = NOW() 
-           WHERE id = $6`,
-          [
-            pull_request.title,
-            JSON.stringify(author),
-            pull_request.changed_files || 0,
-            pull_request.additions || 0,
-            pull_request.deletions || 0,
-            prUUID
-          ]
+      const results = [];
+      for (const repoRow of repoQueryRes.rows) {
+        const userId = repoRow.user_id;
+        const repoId = repoRow.id;
+        const credentials = await getUserCredentials(userId);
+
+        // Find or insert Pull Request record in database scoped to this user
+        let prUUID;
+        const prRes = await db.query(
+          'SELECT id FROM pull_requests WHERE repo_id = $1 AND number = $2 AND user_id = $3', 
+          [repoId, prNumber, userId]
         );
-      } else {
-        const insertPrRes = await db.query(
-          `INSERT INTO pull_requests 
-           (repo_id, number, title, author, branch, base_branch, status, files, additions, deletions, has_review, created_at, updated_at) 
-           VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $8, $9, false, NOW(), NOW()) RETURNING id`,
-          [
-            repoId,
-            prNumber,
-            pull_request.title,
-            JSON.stringify(author),
-            pull_request.head?.ref || 'feature',
-            pull_request.base?.ref || 'main',
-            pull_request.changed_files || 0,
-            pull_request.additions || 0,
-            pull_request.deletions || 0
-          ]
-        );
-        prUUID = insertPrRes.rows[0].id;
+        
+        const author = {
+          login: pull_request.user?.login || 'unknown',
+          avatar: pull_request.user?.avatar_url || null
+        };
+
+        if (prRes.rows.length > 0) {
+          prUUID = prRes.rows[0].id;
+          await db.query(
+            `UPDATE pull_requests 
+             SET title = $1, author = $2, status = 'pending', files = $3, additions = $4, deletions = $5,
+                 has_review = false, updated_at = NOW() 
+             WHERE id = $6 AND user_id = $7`,
+            [
+              pull_request.title,
+              JSON.stringify(author),
+              pull_request.changed_files || 0,
+              pull_request.additions || 0,
+              pull_request.deletions || 0,
+              prUUID,
+              userId
+            ]
+          );
+        } else {
+          const insertPrRes = await db.query(
+            `INSERT INTO pull_requests 
+             (repo_id, number, title, author, branch, base_branch, status, files, additions, deletions, has_review, user_id, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $8, $9, false, $10, NOW(), NOW()) RETURNING id`,
+            [
+              repoId,
+              prNumber,
+              pull_request.title,
+              JSON.stringify(author),
+              pull_request.head?.ref || 'feature',
+              pull_request.base?.ref || 'main',
+              pull_request.changed_files || 0,
+              pull_request.additions || 0,
+              pull_request.deletions || 0,
+              userId
+            ]
+          );
+          prUUID = insertPrRes.rows[0].id;
+        }
+
+        // Trigger CodeWatch review asynchronously in the background
+        const sessionId = uuidv4();
+        triggerCodeWatchReview(repoFullName, prNumber, prUUID, io, sessionId, userId, credentials).catch(err => {
+          console.error(`[Webhook] Review trigger failed for user ${userId}:`, err);
+        });
+
+        results.push({ userId, prId: prUUID, sessionId });
       }
 
-      // Trigger CodeWatch review asynchronously in the background
-      const sessionId = uuidv4();
-      triggerCodeWatchReview(repoFullName, prNumber, prUUID, io, sessionId).catch(err => {
-        console.error('Webhook review trigger failed:', err);
-      });
-
-      res.json({ message: 'Review triggered asynchronously', prId: prUUID, sessionId });
+      res.json({ message: 'Reviews triggered asynchronously', triggers: results });
     } catch (err) {
       console.error('Webhook error:', err);
       res.status(500).json({ error: err.message });
