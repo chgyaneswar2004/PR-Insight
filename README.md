@@ -3,14 +3,6 @@
 > AI-powered Pull Request reviews that catch bugs, security issues, and code quality 
 > problems before they reach production.
 
-PR Insight is an automated developer tool designed for engineering teams that automatically reviews pull requests, runs static and semantic code analysis using Large Language Models, and provides real-time structured feedback directly inside an intuitive, premium dashboard.
-
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Node.js version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)
-![Python version](https://img.shields.io/badge/python-%3E%3D3.11-blue.svg)
-![Made with Claude AI](https://img.shields.io/badge/made%20with-Claude%20AI-orange)
-
 ---
 
 ## Dashboard Preview
