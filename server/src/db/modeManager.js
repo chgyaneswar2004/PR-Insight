@@ -1,6 +1,9 @@
 import * as db from './client.js';
 
 export async function isProductionMode() {
+  if (process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL) {
+    return true;
+  }
   const REAL_DATA_THRESHOLD = parseInt(process.env.REAL_DATA_THRESHOLD || '10');
   try {
     // 1. Check if the one-way switch has already been flipped in the database
