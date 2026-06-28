@@ -324,15 +324,16 @@ export function createRouter(io, anthropicClient) {
         console.error('Error syncing repositories with GitHub:', syncErr);
       }
 
-      // Query from DB (user scoped) - return all synced repositories
+      // Query from DB (user scoped) - only return repos with at least one active or reviewed PR
       const result = await db.query(`
         SELECT r.*, 
                COUNT(p.id) FILTER (WHERE p.status = 'pending' OR p.status = 'open') as open_pr_count,
                COUNT(p.id) as total_pr_count
         FROM repositories r 
-        LEFT JOIN pull_requests p ON p.repo_id = r.id AND p.user_id = $1
+        INNER JOIN pull_requests p ON p.repo_id = r.id AND p.user_id = $1
         WHERE r.user_id = $1
         GROUP BY r.id
+        HAVING COUNT(p.id) FILTER (WHERE p.status IN ('pending', 'open', 'reviewed', 'review') OR p.has_review = true) > 0
         ORDER BY r.updated_at DESC
       `, [req.user.id]);
       const mapped = result.rows.map(mapRepo);

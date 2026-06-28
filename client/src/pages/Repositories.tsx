@@ -51,7 +51,7 @@ export default function Repositories() {
         </div>
 
         {/* GitHub App Installation Guide */}
-        {repos.length === 0 && (
+        {repos.length === 0 && !user?.setupComplete && (
           <Card className="border-accent-cyan/20 bg-accent-cyan/5 backdrop-blur-md overflow-hidden relative">
             <div className="absolute top-0 right-0 w-48 h-48 bg-accent-cyan/5 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-accent-purple/5 rounded-full blur-3xl pointer-events-none" />
