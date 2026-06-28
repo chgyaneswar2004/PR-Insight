@@ -177,15 +177,20 @@ def send_report_email(
     if not email_enabled:
         print("Email notifications are disabled. Set EMAIL_ENABLED=true to enable.")
         return False
+
+    # Extract and resolve SMTP credentials
+    smtp_server = (credentials.get("SMTP_SERVER") if credentials else None) or settings.smtp_server
+    smtp_port_str = (credentials.get("SMTP_PORT") if credentials else None) or str(settings.smtp_port)
+    smtp_port = int(smtp_port_str) if smtp_port_str and smtp_port_str.isdigit() else 587
+    smtp_username = (credentials.get("SMTP_USERNAME") if credentials else None) or settings.smtp_username
+    smtp_password = (credentials.get("SMTP_PASSWORD") if credentials else None) or settings.smtp_password
+
+    # If any required SMTP setting is missing, print warning and skip email sending
+    if not all([smtp_server, smtp_username, smtp_password]):
+        print("Email notifications are enabled, but SMTP server credentials are not fully configured. Skipping email report.")
+        return False
     
     try:
-        # Use user-specific credentials from database if provided, otherwise fall back to system settings
-        smtp_server = credentials.get("SMTP_SERVER") if credentials else None
-        smtp_port_str = credentials.get("SMTP_PORT") if credentials else None
-        smtp_port = int(smtp_port_str) if smtp_port_str and smtp_port_str.isdigit() else None
-        smtp_username = credentials.get("SMTP_USERNAME") if credentials else None
-        smtp_password = credentials.get("SMTP_PASSWORD") if credentials else None
-
         notifier = EmailNotifier(
             smtp_server=smtp_server,
             smtp_port=smtp_port,
