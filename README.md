@@ -1,208 +1,305 @@
-# Codedog: AI-Powered Code Review Assistant
+# PR Insight
 
-[![Python Version](https://img.shields.io/pypi/pyversions/codewatch)](https://pypi.org/project/codewatch/)
-[![PyPI Version](https://img.shields.io/pypi/v/codewatch.svg)](https://pypi.org/project/codewatch/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> AI-powered Pull Request reviews that catch bugs, security issues, and code quality 
+> problems before they reach production.
 
-Codedog leverages Large Language Models (LLMs) like GPT to automatically review your pull requests on platforms like GitHub and GitLab, providing summaries and potential suggestions.
+PR Insight is an automated developer tool designed for engineering teams that automatically reviews pull requests, runs static and semantic code analysis using Large Language Models, and provides real-time structured feedback directly inside an intuitive, premium dashboard.
 
-## Features
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Node.js version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)
+![Python version](https://img.shields.io/badge/python-%3E%3D3.11-blue.svg)
+![Made with Claude AI](https://img.shields.io/badge/made%20with-Claude%20AI-orange)
 
-*   **Pull Request Summarization**: Generates concise summaries of PR changes, including categorization (feature, fix, etc.) and identification of major files.
-*   **Code Change Summarization**: Summarizes individual file diffs.
-*   **Code Review Suggestions**: Provides feedback and suggestions on code changes (experimental).
-*   **Multi-language Support**: Includes templates for English and Chinese reports.
-*   **Platform Support**: Works with GitHub and GitLab.
-*   **Automated Code Review**: Uses LLMs to analyze code changes, provide feedback, and suggest improvements
-*   **Scoring System**: Evaluates code across multiple dimensions, including correctness, readability, and maintainability
-*   **Multiple LLM Support**: Works with OpenAI (including GPT-4o), Azure OpenAI, DeepSeek, and DeepSeek R1 models (see [Models Guide](docs/models.md))
-*   **Email Notifications**: Sends code review reports via email (see [Email Setup Guide](docs/email_setup.md))
-*   **Commit-Triggered Reviews**: Automatically reviews code when commits are made (see [Commit Review Guide](docs/commit_review.md))
-*   **Developer Evaluation**: Evaluates a developer's code over a specific time period
+---
 
-## Prerequisites
+## Dashboard Preview
 
-*   **Python**: Version 3.10 or higher (as the project now requires `^3.10`).
-*   **Poetry**: A dependency management tool for Python. Installation instructions: [Poetry Docs](https://python-poetry.org/docs/#installation).
-*   **Git**: For interacting with repositories.
-*   **(Optional) Homebrew**: For easier installation of Python versions on macOS.
-*   **API Keys**:
-    *   OpenAI API Key (or Azure OpenAI credentials).
-    *   GitHub Personal Access Token (with `repo` scope) or GitLab Personal Access Token (with `api` scope).
+![PR Insight Dashboard](./docs/screenshot.png)
+*Note: Replace with actual screenshot after first deployment.*
 
-## Setup
+---
 
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/codewatch-ai/codewatch.git # Or your fork
-    cd codewatch
-    ```
+## What is PR Insight?
 
-2.  **Configure Python Version (if needed)**:
-    The project requires Python `^3.10` (3.10 or higher, but less than 4.0).
-    *   If your default Python doesn't meet this, install a compatible version (e.g., using Homebrew `brew install python@3.12`, pyenv, etc.).
-    *   Tell Poetry to use the correct Python executable (replace path if necessary):
-        ```bash
-        poetry env use /opt/homebrew/bin/python3.12 # Example for Homebrew on Apple Silicon
-        # or
-        poetry env use /path/to/your/python3.10+
-        ```
+Code reviews are a critical part of the software development lifecycle, but they are frequently slow, inconsistent, and prone to human error—especially when engineering teams are working under tight deadline pressures. Senior developers spend hours context-switching to review code, while junior developers wait for valuable feedback, stalling the delivery pipeline.
 
-3.  **Install Dependencies**:
-    Poetry will create a virtual environment and install all necessary packages defined in `pyproject.toml` and `poetry.lock`.
-    ```bash
-    poetry install --with test,dev # Include optional dev and test dependencies
-    ```
-    *(Note: If you encounter issues connecting to package sources, ensure you have internet access. The configuration previously used a mirror but has been reverted to the default PyPI.)*
+PR Insight solves this bottleneck by acting as an always-on, automated AI reviewer. The moment a developer opens or updates a Pull Request, the platform automatically scans the changes, summarizes file contents, and performs a deep analysis of code structure, performance, style, and security vulnerabilities. It delivers consistent, structured, and non-judgmental reviews in seconds.
 
-## Configuration
+By automating the initial pass of code reviews, PR Insight allows engineering teams to catch critical bugs, exposed secrets, and performance regressions before they ever reach production. Senior engineers can focus on higher-level architectural reviews, while team leads gain clear visibility into quality metrics and trends across all active repositories.
 
-Codedog uses environment variables for configuration. You can set these directly in your shell, or use a `.env` file (you might need to install `python-dotenv` separately in your environment: `poetry run pip install python-dotenv`).
+---
 
-**Required:**
+## Key Features
 
-*   **Platform Token**:
-    *   For GitHub: `GITHUB_TOKEN="your_github_personal_access_token"`
-    *   For GitLab: `GITLAB_TOKEN="your_gitlab_personal_access_token"`
-    *   For GitLab (if using a self-hosted instance): `GITLAB_URL="https://your.gitlab.instance.com"`
+* **Automatic PR Reviews** — Triggers the moment a pull request is opened, updated, or redelivered via GitHub webhooks.
+* **6-Dimension Code Scoring** — Rates every Pull Request on a scale of 0 to 100 across Security, Quality, Performance, Maintainability, Readability, and Documentation.
+* **Security Issue Detection** — Identifies OWASP vulnerabilities, exposed API keys or secrets, and unsafe execution paths.
+* **Side-by-side Diff Viewer** — View the exact code additions and deletions alongside the AI's specific inline findings and suggestions.
+* **Real-time Agent Logs** — Monitor the multi-step AI code analysis pipeline live as it runs through files, structures commits, and computes metrics.
+* **Developer Analytics** — Track average quality scores, reviews per day, and issues found grouped by developer and repository over time.
+* **Email Notifications** — Automatically delivers a formatted HTML and Markdown code review report directly to configured team members.
+* **Multi-user Support** — Multiple developers can log in securely using their individual GitHub accounts and view their own private repositories.
+* **Role-based Access** — Admin and member roles with secure user credential isolation to protect private repository access.
+* **Free & Paid LLM Tiers** — Configure a free tier powered by Google Gemini and NVIDIA NIM, or plug in your own paid keys for OpenAI, Gemini Pro, or DeepSeek.
 
-*   **LLM Credentials**:
-    *   **OpenAI**: `OPENAI_API_KEY="sk-your_openai_api_key"`
-    *   **Azure OpenAI**: Set `AZURE_OPENAI="true"` (or any non-empty string) **and** provide:
-        *   `AZURE_OPENAI_API_KEY="your_azure_api_key"`
-        *   `AZURE_OPENAI_API_BASE="https://your_azure_endpoint.openai.azure.com/"`
-        *   `AZURE_OPENAI_DEPLOYMENT_ID="your_gpt_35_turbo_deployment_name"` (Used for code summaries/reviews)
-        *   `AZURE_OPENAI_GPT4_DEPLOYMENT_ID="your_gpt_4_deployment_name"` (Used for PR summary)
-        *   *(Optional)* `AZURE_OPENAI_API_VERSION="YYYY-MM-DD"` (Defaults to a recent preview version if not set)
-    *   **DeepSeek Models**: Set the following for DeepSeek models:
-        *   `DEEPSEEK_API_KEY="your_deepseek_api_key"`
-        *   *(Optional)* `DEEPSEEK_MODEL="deepseek-chat"` (Default model, options include: "deepseek-chat", "deepseek-coder", etc.)
-        *   *(Optional)* `DEEPSEEK_API_BASE="https://api.deepseek.com"` (Default API endpoint)
-        *   For **DeepSeek R1 model** specifically:
-            *   Set `DEEPSEEK_MODEL="deepseek-r1"`
-            *   *(Optional)* `DEEPSEEK_R1_API_BASE="https://your-r1-endpoint"` (If different from standard DeepSeek endpoint)
+---
 
-**Example `.env` file:**
+## Architecture Overview
 
-```dotenv
-# Platform
-GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# LLM (OpenAI example)
-OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# LLM (Azure OpenAI example)
-# AZURE_OPENAI="true"
-# AZURE_OPENAI_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-# AZURE_OPENAI_API_BASE="https://your-instance.openai.azure.com/"
-# AZURE_OPENAI_DEPLOYMENT_ID="gpt-35-turbo-16k"
-# AZURE_OPENAI_GPT4_DEPLOYMENT_ID="gpt-4-turbo"
-
-# LLM (DeepSeek example)
-# DEEPSEEK_API_KEY="your_deepseek_api_key"
-# DEEPSEEK_MODEL="deepseek-chat"
-# DEEPSEEK_API_BASE="https://api.deepseek.com"
-
-# LLM (DeepSeek R1 example)
-# DEEPSEEK_API_KEY="your_deepseek_api_key"
-# DEEPSEEK_MODEL="deepseek-r1"
-# DEEPSEEK_R1_API_BASE="https://your-r1-endpoint"
-
-# Model selection (optional)
-CODE_SUMMARY_MODEL="gpt-3.5"
-PR_SUMMARY_MODEL="gpt-4"
-CODE_REVIEW_MODEL="deepseek"  # Can use "deepseek" or "deepseek-r1" here
-
-# Email notification (optional)
-EMAIL_ENABLED="true"
-NOTIFICATION_EMAILS="your_email@example.com,another_email@example.com"
-SMTP_SERVER="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USERNAME="your_email@gmail.com"
-SMTP_PASSWORD="your_app_password"  # For Gmail, you must use an App Password, see docs/email_setup.md
+```
+GitHub Webhook
+      ↓
+PR Insight Express Server (Node.js)
+      ↓                    ↓
+PostgreSQL DB        CodeWatch Engine (Python / FastAPI)
+      ↓                    ↓
+React Dashboard      LangChain LLM Chains
+                           ↓
+                    Gemini (summaries) + NVIDIA NIM (review)
+                    — or —
+                    Single paid provider (OpenAI / DeepSeek)
 ```
 
-## Running the Example (Quickstart)
+* **GitHub Webhook:** Triggers when PR events are fired and signs payloads using HMAC-SHA256.
+* **Express Server (Node.js):** Coordinates authorization, handles the WebSocket connection, manages the PostgreSQL DB, and delegates jobs.
+* **PostgreSQL Database:** Securely stores repository configurations, user session states, metrics, and code review records.
+* **React Dashboard:** A high-performance web interface built with TypeScript that visualizes reviews, logs, and analytics.
+* **CodeWatch Engine (Python/FastAPI):** Exposes REST API endpoints to ingest diffs, coordinate agent pipelines, and send emails.
+* **LangChain LLM Chains:** Orchestrates prompt templates, summarizes files individually, and conducts the main code reviews.
 
-The `README.md` in the project root (and `codewatch/__init__.py`) contains a Python script demonstrating the core workflow.
+---
 
-1.  **Save the Quickstart Code**: Copy the Python code from the quickstart section into a file, e.g., `run_codewatch.py`.
+## Tech Stack
 
-2.  **Update Placeholders**: Modify the script with:
-    *   Your actual GitHub/GitLab token.
-    *   Your OpenAI/Azure API key and relevant details.
-    *   The target repository (e.g., `"codewatch-ai/codewatch"` or your fork/project).
-    *   The target Pull Request / Merge Request number/iid.
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + TypeScript + Vite |
+| Styling | Tailwind CSS + ShadCN UI |
+| State | Zustand |
+| Charts | Recharts |
+| Backend | Node.js + Express + TypeScript |
+| AI Engine | Python + FastAPI + LangChain |
+| LLM (Free) | Google Gemini + NVIDIA NIM (llama-3.1-70b) |
+| LLM (Paid) | OpenAI / DeepSeek / Gemini Pro |
+| Database | PostgreSQL (Neon recommended) |
+| Real-time | Socket.io |
+| Auth | GitHub OAuth |
+| Encryption | AES-256-GCM |
 
-3.  **Load Environment Variables**: If using a `.env` file, ensure it's loaded. You might need to add `from dotenv import load_dotenv; load_dotenv()` at the beginning of your script.
+---
 
-4.  **Run the Script**: Execute the script within the Poetry environment:
-    ```bash
-    # For GitHub PR review
-    poetry run python run_codewatch.py pr "owner/repo" 123
+## Getting Started
 
-    # For GitLab MR review
-    poetry run python run_codewatch.py pr "owner/repo" 123 --platform gitlab
+### Prerequisites
+Make sure you have the following installed on your machine:
+* [Node.js](https://nodejs.org/) 18+
+* [Python](https://www.python.org/) 3.11+
+* [PostgreSQL](https://www.postgresql.org/) (or a free Serverless Postgres account at [Neon](https://neon.tech))
+* A GitHub account
 
-    # For GitLab MR review with custom GitLab instance
-    poetry run python run_codewatch.py pr "owner/repo" 123 --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
-    ```
+---
 
-This will:
-*   Initialize the appropriate retriever (GitHub/GitLab).
-*   Fetch the PR/MR data.
-*   Use the configured LLMs to generate code summaries and a PR summary.
-*   Use the configured LLM to generate code review suggestions.
-*   Print a formatted Markdown report to the console.
+### Creating a GitHub OAuth App
+PR Insight uses a GitHub App or OAuth App for user logins and webhook integrations. To create one:
+1. Log in to your GitHub account and navigate to **Settings** → **Developer Settings** → **OAuth Apps** → **New OAuth App**.
+2. Fill out the application details:
+   * **Application Name:** `PR Insight`
+   * **Homepage URL:** `http://localhost:5173`
+   * **Authorization Callback URL:** `http://localhost:3001/auth/github/callback`
+3. Click **Register Application**.
+4. Copy the displayed **Client ID** and click **Generate a new client secret** to copy the **Client Secret**.
 
-## GitLab Integration
+---
 
-Codedog fully supports GitLab integration for reviewing merge requests. This feature allows you to analyze code quality in GitLab merge requests just like GitHub pull requests. To use GitLab integration:
+### Installation
 
-1. **Set up GitLab Token**: Generate a personal access token with `api` scope from your GitLab account settings.
-
-2. **Configure Environment Variables**: Add the following to your `.env` file:
-   ```
-   GITLAB_TOKEN="your_gitlab_personal_access_token"
-   GITLAB_URL="https://gitlab.com"  # Or your self-hosted GitLab URL
-   ```
-
-3. **Run GitLab MR Review**: Use the following command to review a GitLab merge request:
-   ```bash
-   python run_codewatch.py pr "owner/repo" 123 --platform gitlab
-   ```
-
-   Replace `owner/repo` with your GitLab project path and `123` with your merge request IID.
-
-4. **Self-hosted GitLab**: If you're using a self-hosted GitLab instance, specify the URL:
-   ```bash
-   python run_codewatch.py pr "owner/repo" 123 --platform gitlab --gitlab-url "https://your.gitlab.instance.com"
-   ```
-
-## Running Tests
-
-To ensure the package is working correctly after setup or changes:
+Clone the repository and install the dependencies:
 
 ```bash
-poetry run pytest
+# Clone the repository
+git clone https://github.com/yourusername/pr-insight.git
+cd pr-insight
+
+# Install all workspace dependencies
+npm install
+
+# Install Python dependencies for the CodeWatch AI engine
+cd examples
+pip install -r requirements.txt
+cd ..
 ```
 
-## Development
+---
 
-*   **Code Style**: Uses `black` for formatting and `flake8` for linting.
-    ```bash
-    poetry run black .
-    poetry run flake8 .
-    ```
-*   **Dependencies**: Managed via `poetry`. Use `poetry add <package>` to add new dependencies.
+### Environment Setup
+
+Create your environment configuration file:
+
+```bash
+# Copy the example environment template
+cp .env.example .env
+```
+
+Open the newly created `.env` file and configure the core variables:
+
+```dotenv
+# Core Settings
+MASTER_KEY="generate-with: openssl rand -hex 32"
+DATABASE_URL="postgresql://user:pass@host:5432/prinsight"
+GITHUB_CLIENT_ID="from-your-oauth-app"
+GITHUB_CLIENT_SECRET="from-your-oauth-app"
+APP_URL="http://localhost:5173"
+SESSION_SECRET="generate-with: openssl rand -hex 32"
+```
+
+*Note: All other configuration inputs (LLM API keys, SMTP credentials, and individual user GitHub tokens) are entered securely in the setup wizard when you log in for the first time.*
+
+---
+
+### Running Locally
+
+To run the application locally, start the frontend, backend, and AI engine in three separate terminal windows:
+
+#### Terminal 1 — Start the Express Backend
+```bash
+npm run server
+```
+
+#### Terminal 2 — Start the React Frontend
+```bash
+npm run client
+```
+
+#### Terminal 3 — Start the CodeWatch AI Engine
+```bash
+cd examples
+uvicorn api_server:app --port 8000 --reload
+```
+
+Navigate to `http://localhost:5173` in your web browser. The application will detect a fresh installation and launch the First-Time Setup Wizard automatically.
+
+---
+
+## First-time Setup Wizard
+
+When you access PR Insight for the first time, you will login using your GitHub account. Following authorization, a guided onboarding wizard loads to configure your instance:
+
+1. **LLM Configuration** — Choose between the **Free Tier** (uses a Gemini API key for summaries and an NVIDIA NIM API key for reviews) and the **Paid Tier** (uses a single provider key such as OpenAI or DeepSeek).
+2. **Email Notifications** — Input your SMTP settings (server, port, sender email, and password) or Resend API key to automatically distribute HTML reports.
+
+All input keys and credentials are encrypted using AES-256-GCM before storage. The first user to complete onboarding is automatically assigned the `admin` role.
+
+---
+
+## How It Works
+
+1. A developer opens, updates, or manually redelivers a Pull Request on a GitHub repository.
+2. GitHub sends a cryptographically signed webhook payload to the PR Insight Node server.
+3. The server validates the signature, extracts the user mapping, and queues the review.
+4. The Python CodeWatch engine fetches the changed file segments and diff content via the GitHub API.
+5. LangChain LLM chains construct brief summaries for each updated file.
+6. A comprehensive code review evaluates security vulnerabilities, maintainability, and code style.
+7. PR Insight scores the PR across 6 key metrics (0 to 100).
+8. The database writes the review metrics, issues lists, and final summary report.
+9. The React dashboard updates in real-time using Socket.io to present the final analysis.
+10. An HTML email containing the Markdown review is distributed via the configured Resend API or SMTP server.
+
+---
+
+## LLM Tier Comparison
+
+```
+Free Tier                          Paid Tier
+─────────────────────────────      ─────────────────────────────
+Gemini API (summaries)             Single provider for everything
+NVIDIA NIM (code review)           OpenAI / Gemini Pro / DeepSeek
+2 API keys required                1 API key required
+Rate limited (12s throttle)        No throttling
+Cost: $0                           Cost: based on usage
+Good for: individuals, testing     Good for: teams, production
+```
+
+---
+
+## Deployment
+
+### Deploy to Railway (Recommended)
+
+1. Install the Railway CLI:
+   ```bash
+   npm install -g @railway/cli
+   ```
+2. Log in and deploy:
+   ```bash
+   railway login
+   railway init
+   railway up
+   ```
+3. Set your environment variables in the Railway dashboard using the values configured in your local `.env` file.
+
+---
+
+### Database Setup
+
+We recommend using [Neon](https://neon.tech) for a free, serverless PostgreSQL database:
+
+```
+Free tier provides:
+→ 0.5 GB storage capacity
+→ Serverless PostgreSQL scaling
+→ Sufficient capacity for early-stage engineering teams
+```
+
+---
+
+## Environment Variables Reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MASTER_KEY` | ✅ | 32-character hex string for encrypting user API keys (AES-256-GCM). |
+| `DATABASE_URL` | ✅ | Connection string pointing to your PostgreSQL database. |
+| `GITHUB_CLIENT_ID` | ✅ | Client ID from your registered GitHub OAuth App. |
+| `GITHUB_CLIENT_SECRET` | ✅ | Client Secret from your registered GitHub OAuth App. |
+| `APP_URL` | ✅ | The base URL where your frontend is hosted. |
+| `SESSION_SECRET` | ✅ | Secret string used to sign session cookies. |
+| `REAL_DATA_THRESHOLD` | ❌ | Minimum PR count before the app ends demo simulation mode (default: `10`). |
+| `NODE_ENV` | ❌ | Set to `production` when building for a live deployment. |
+
+---
+
+## Security
+
+* **AES-256-GCM Encryption:** All user credentials, LLM keys, and custom email integrations are encrypted at rest using AES-256-GCM.
+* **Webhook Signature Verification:** Webhook payloads incoming from GitHub are validated using HMAC-SHA256 to ensure authenticity.
+* **httpOnly Sessions:** Session tokens are securely transmitted and stored as `httpOnly`, `sameSite`, and `secure` HTTP cookies to prevent XSS leaks.
+* **Data Isolation:** Repository access is isolated at the query layer. Users cannot view analytics, PRs, or reviews belonging to another user.
+* **Credential Protection:** Admin roles can manage tier configurations and review usage metadata but cannot decrypt or read another user's API tokens.
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please refer to the project's contribution guidelines (if available) or open an issue/PR on the repository.
+Contributions are welcome. Please open an issue first to discuss what you would like to change.
+
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/your-feature`).
+3. Commit your changes (`git commit -m 'Add your feature'`).
+4. Push to the branch (`git push origin feature/your-feature`).
+5. Open a Pull Request.
+
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-\ n #   N g r o k   T e s t 
- 
- 
+MIT License — see [LICENSE](./LICENSE) for details.
+
+---
+
+## Built With
+
+* [CodeDog / CodeWatch](https://github.com/codedog-ai/codedog) — The underlying AI review engine.
+* [Anthropic Claude](https://anthropic.com) — AI assistance during development.
+* [LangChain](https://langchain.com) — LLM orchestration framework.
+* [ShadCN UI](https://ui.shadcn.com) — UI component library.
+* [Neon](https://neon.tech) — Serverless PostgreSQL database.
