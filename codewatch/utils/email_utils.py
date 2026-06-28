@@ -136,16 +136,24 @@ class EmailNotifier:
         
         try:
             # Create a secure SSL context
-            context = ssl.create_default_context() if self.use_tls else None
+            context = ssl.create_default_context()
             
-            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=10) as server:
-                if self.use_tls:
-                    server.starttls(context=context)
-                
-                server.login(self.smtp_username, self.smtp_password)
-                server.sendmail(
-                    self.smtp_username, all_recipients, msg.as_string()
-                )
+            # Use SMTP_SSL for port 465, standard SMTP + STARTTLS for other ports (like 587)
+            if self.smtp_port == 465:
+                with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=10) as server:
+                    server.login(self.smtp_username, self.smtp_password)
+                    server.sendmail(
+                        self.smtp_username, all_recipients, msg.as_string()
+                    )
+            else:
+                with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=10) as server:
+                    if self.use_tls:
+                        server.starttls(context=context)
+                    
+                    server.login(self.smtp_username, self.smtp_password)
+                    server.sendmail(
+                        self.smtp_username, all_recipients, msg.as_string()
+                    )
             
             return True
         except Exception as e:
