@@ -207,7 +207,7 @@ export default function Repositories() {
                           <div>
                             <div className="text-xs text-muted-foreground mb-1">Quality Score</div>
                             <div className="text-lg font-bold text-white">
-                              {repo.totalPRs > 0 ? (
+                              {repo.totalPRs !== undefined && repo.totalPRs > 0 ? (
                                 <>
                                   <span className={repo.qualityScore >= 90 ? 'text-success' : repo.qualityScore >= 75 ? 'text-warning' : 'text-error'}>
                                     {repo.qualityScore}
