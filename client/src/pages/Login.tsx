@@ -18,8 +18,8 @@ export default function Login() {
           className="relative z-10 max-w-xl"
         >
           <div className="flex items-center gap-3 mb-8 text-accent-cyan">
-            <div className="p-3 bg-accent-cyan/10 rounded-xl">
-              <Code2 className="w-8 h-8" />
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-accent-cyan/5 p-1 flex items-center justify-center">
+              <img src="/logo.png" alt="PR Insight" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white">PR Insight AI</h1>
           </div>
