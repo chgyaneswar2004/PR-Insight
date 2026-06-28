@@ -35,18 +35,20 @@ class EmailNotifier:
         self.smtp_username = smtp_username or settings.smtp_username
         self.smtp_password = smtp_password or settings.smtp_password
         self.use_tls = use_tls
+        self.resend_api_key = os.environ.get("RESEND_API_KEY")
         
-        # Validate required settings
-        if not all([self.smtp_server, self.smtp_username, self.smtp_password]):
-            missing = []
-            if not self.smtp_server:
-                missing.append("SMTP_SERVER")
-            if not self.smtp_username:
-                missing.append("SMTP_USERNAME")
-            if not self.smtp_password:
-                missing.append("SMTP_PASSWORD")
-            
-            raise ValueError(f"Missing required email configuration: {', '.join(missing)}")
+        # Validate required settings only if RESEND_API_KEY is not set
+        if not self.resend_api_key:
+            if not all([self.smtp_server, self.smtp_username, self.smtp_password]):
+                missing = []
+                if not self.smtp_server:
+                    missing.append("SMTP_SERVER")
+                if not self.smtp_username:
+                    missing.append("SMTP_USERNAME")
+                if not self.smtp_password:
+                    missing.append("SMTP_PASSWORD")
+                
+                raise ValueError(f"Missing required email configuration: {', '.join(missing)}")
     
     def send_report(
         self,
@@ -134,6 +136,49 @@ class EmailNotifier:
         msg.attach(text_part)
         msg.attach(html_part)
         
+        # If Resend API Key is set, send using HTTP API to bypass port blockages
+        if self.resend_api_key:
+            import json
+            import urllib.request
+            import urllib.error
+
+            sender = "PR-Insight <onboarding@resend.dev>"
+            custom_sender = from_email or self.smtp_username
+            if custom_sender and "@" in custom_sender and "gmail.com" not in custom_sender:
+                sender = custom_sender
+
+            payload = {
+                "from": sender,
+                "to": to_emails,
+                "subject": subject,
+                "html": html_content,
+                "text": markdown_content
+            }
+            if cc_emails:
+                payload["cc"] = cc_emails
+
+            try:
+                req = urllib.request.Request(
+                    "https://api.resend.com/emails",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Authorization": f"Bearer {self.resend_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    res_body = response.read().decode("utf-8")
+                    print(f"Email sent successfully via Resend API: {res_body}")
+                    return True
+            except urllib.error.HTTPError as e:
+                err_content = e.read().decode("utf-8")
+                print(f"Failed to send email via Resend API: {e.code} - {err_content}")
+                return False
+            except Exception as e:
+                print(f"Unexpected error sending email via Resend API: {str(e)}")
+                return False
+
         try:
             # Create a secure SSL context
             context = ssl.create_default_context()
@@ -193,10 +238,13 @@ def send_report_email(
     smtp_username = (credentials.get("SMTP_USERNAME") if credentials else None) or settings.smtp_username
     smtp_password = (credentials.get("SMTP_PASSWORD") if credentials else None) or settings.smtp_password
 
-    # If any required SMTP setting is missing, print warning and skip email sending
-    if not all([smtp_server, smtp_username, smtp_password]):
-        print("Email notifications are enabled, but SMTP server credentials are not fully configured. Skipping email report.")
-        return False
+    resend_api_key = os.environ.get("RESEND_API_KEY")
+
+    # If no Resend key is set, check if SMTP is fully configured.
+    if not resend_api_key:
+        if not all([smtp_server, smtp_username, smtp_password]):
+            print("Email notifications are enabled, but neither Resend API nor SMTP credentials are fully configured. Skipping email report.")
+            return False
     
     try:
         notifier = EmailNotifier(
