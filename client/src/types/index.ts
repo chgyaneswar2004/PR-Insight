@@ -7,6 +7,7 @@ export interface Repo {
   stars: number;
   forks: number;
   openPRs: number;
+  totalPRs?: number;
   lastActivity: string;
   qualityScore: number;
   securityIssues: number;
@@ -74,7 +75,12 @@ export interface Review {
   codeDiff?: {
     oldCode: string;
     newCode: string;
-  } | null;
+  } | Array<{
+    filename: string;
+    oldCode: string;
+    newCode: string;
+  }> | null;
+  rawMarkdown?: string;
   agentSteps: AgentStep[];
   createdAt: string;
 }

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  python-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: pr-insight-python-api
+    restart: always
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+    ports:
+      - "8000:8000"
+
+  node-api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: pr-insight-node-api
+    restart: always
+    environment:
+      - PORT=3001
+      - PGHOST=${PGHOST}
+      - PGPORT=${PGPORT}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE}
+      - CODEWATCH_API_URL=http://python-api:8000
+      - MASTER_KEY=${MASTER_KEY}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CORS_ORIGIN=*
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_SOCKET_URL=/
+    container_name: pr-insight-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - node-api

@@ -1,10 +1,9 @@
-import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { GitBranch, Code2, Sparkles, Shield, Zap } from 'lucide-react';
+import { GitBranch, Sparkles, Shield, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { api } from '../lib/api';
 
 export default function Login() {
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col md:flex-row">
@@ -19,8 +18,8 @@ export default function Login() {
           className="relative z-10 max-w-xl"
         >
           <div className="flex items-center gap-3 mb-8 text-accent-cyan">
-            <div className="p-3 bg-accent-cyan/10 rounded-xl">
-              <Code2 className="w-8 h-8" />
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-accent-cyan/5 p-1 flex items-center justify-center">
+              <img src="/logo.png" alt="PR Insight" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white">PR Insight AI</h1>
           </div>
@@ -90,7 +89,11 @@ export default function Login() {
               variant="gradient" 
               size="lg" 
               className="w-full flex items-center justify-center gap-3 py-6 text-base shadow-glow-purple"
-              onClick={() => navigate('/')}
+              onClick={() => {
+                const baseURL = api.defaults.baseURL || 'http://localhost:3001/api';
+                const rootURL = baseURL.endsWith('/api') ? baseURL.slice(0, -4) : baseURL;
+                window.location.href = `${rootURL}/auth/github`;
+              }}
             >
               <GitBranch className="w-5 h-5" />
               Continue with GitHub

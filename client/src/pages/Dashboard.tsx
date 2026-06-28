@@ -1,26 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { useAppStore } from '../store';
 import { Activity, ShieldAlert, CheckCircle2, GitMerge, Folders } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { api } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [analytics, setAnalytics] = useState<any>(null);
-  const { prs, fetchPRs, repos, fetchRepos } = useAppStore();
+  const { prs, fetchPRs, repos, fetchRepos, stats, fetchStats, analytics, fetchAnalytics } = useAppStore();
 
   useEffect(() => {
     fetchRepos();
     fetchPRs();
-    
-    api.get('/dashboard/stats').then(setStats);
-    api.get('/analytics').then(setAnalytics);
-  }, [fetchRepos, fetchPRs]);
+    fetchStats();
+    fetchAnalytics();
+  }, [fetchRepos, fetchPRs, fetchStats, fetchAnalytics]);
 
   const recentPRs = prs.slice(0, 5);
 

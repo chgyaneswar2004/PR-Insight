@@ -1,0 +1,14 @@
+version: "3"
+authtoken: 3Fa9JK0oW7xdYs9qE9vRt8j_5JKtZc7HTFhnUYVqkmYVs
+tunnels:
+  pr-insight:
+    proto: http
+    addr: 3001
+    traffic_policy:
+      inbound:
+        - name: add-ngrok-skip-warning
+          actions:
+            - type: add-headers
+              config:
+                headers:
+                  ngrok-skip-browser-warning: "1"
