@@ -808,6 +808,7 @@ export function createRouter(io, anthropicClient) {
       // Get GitHub token
       const credentials = await getUserCredentials(req.user.id);
       const githubToken = credentials['GITHUB_TOKEN'];
+      console.log(`[Merge] Using GITHUB_TOKEN starting with: ${githubToken ? githubToken.substring(0, 8) : 'undefined'}...`);
       if (!githubToken) {
         console.warn(`[Merge] GITHUB_TOKEN not found for User: ${req.user.username}`);
         return res.status(400).json({ error: 'GitHub credentials not found. Please setup integration.' });
