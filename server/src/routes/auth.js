@@ -145,9 +145,10 @@ router.get('/github/callback', async (req, res) => {
 
     // Step 8 — Redirect based on setup status
     // In development, the client is on http://localhost:5173. In production, same domain.
-    const clientUrl = process.env.NODE_ENV === 'production'
-      ? (process.env.APP_URL || 'http://localhost:3001')
-      : 'http://localhost:5173';
+    const clientUrl = process.env.FRONTEND_URL || 
+      (process.env.NODE_ENV === 'production'
+        ? (process.env.APP_URL || 'http://localhost:3001')
+        : 'http://localhost:5173');
 
     if (user.setup_complete) {
       res.redirect(`${clientUrl}/`);
