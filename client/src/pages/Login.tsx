@@ -1,5 +1,5 @@
 import { Button } from '../components/ui/button';
-import { GitBranch, Code2, Sparkles, Shield, Zap } from 'lucide-react';
+import { GitBranch, Sparkles, Shield, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
 

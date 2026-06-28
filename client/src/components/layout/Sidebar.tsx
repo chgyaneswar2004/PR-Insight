@@ -8,7 +8,6 @@ import {
   Settings, 
   LogOut,
   Bell,
-  Code2,
   Shield,
   ChevronUp
 } from 'lucide-react';
