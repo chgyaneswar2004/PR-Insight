@@ -207,10 +207,16 @@ export default function Repositories() {
                           <div>
                             <div className="text-xs text-muted-foreground mb-1">Quality Score</div>
                             <div className="text-lg font-bold text-white">
-                              <span className={repo.qualityScore >= 90 ? 'text-success' : repo.qualityScore >= 75 ? 'text-warning' : 'text-error'}>
-                                {repo.qualityScore}
-                              </span>
-                              <span className="text-sm text-muted-foreground font-normal">/100</span>
+                              {repo.totalPRs > 0 ? (
+                                <>
+                                  <span className={repo.qualityScore >= 90 ? 'text-success' : repo.qualityScore >= 75 ? 'text-warning' : 'text-error'}>
+                                    {repo.qualityScore}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground font-normal">/100</span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground text-sm font-normal">Not reviewed</span>
+                              )}
                             </div>
                           </div>
                           
