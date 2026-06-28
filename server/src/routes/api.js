@@ -791,24 +791,34 @@ export function createRouter(io, anthropicClient) {
         return res.json({ success: true, message: 'PR merged (simulated)' });
       }
 
+      console.log(`[Merge] Requested merge for PR UUID: ${req.params.id} by User: ${req.user.username}`);
+
       // Get PR details from DB
       const prResult = await db.query(
         'SELECT p.*, r.full_name FROM pull_requests p JOIN repositories r ON r.id = p.repo_id WHERE p.id = $1 AND p.user_id = $2',
         [req.params.id, req.user.id]
       );
-      if (prResult.rows.length === 0) return res.status(404).json({ error: 'PR not found' });
+      if (prResult.rows.length === 0) {
+        console.warn(`[Merge] PR not found in database for UUID: ${req.params.id} and User ID: ${req.user.id}`);
+        return res.status(404).json({ error: 'PR not found in database' });
+      }
       const pr = prResult.rows[0];
+      console.log(`[Merge] Found PR in database: ${pr.full_name} #${pr.number}`);
 
       // Get GitHub token
       const credentials = await getUserCredentials(req.user.id);
       const githubToken = credentials['GITHUB_TOKEN'];
       if (!githubToken) {
+        console.warn(`[Merge] GITHUB_TOKEN not found for User: ${req.user.username}`);
         return res.status(400).json({ error: 'GitHub credentials not found. Please setup integration.' });
       }
 
       // Merge PR on GitHub
       const { mergeMethod = 'merge' } = req.body;
-      const mergeRes = await fetch(`https://api.github.com/repos/${pr.full_name}/pulls/${pr.number}/merge`, {
+      const url = `https://api.github.com/repos/${pr.full_name}/pulls/${pr.number}/merge`;
+      console.log(`[Merge] Sending PUT request to GitHub: ${url}`);
+
+      const mergeRes = await fetch(url, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${githubToken}`,
@@ -822,12 +832,16 @@ export function createRouter(io, anthropicClient) {
         })
       });
 
+      console.log(`[Merge] GitHub API responded with status: ${mergeRes.status}`);
+
       if (!mergeRes.ok) {
         const errText = await mergeRes.text();
+        console.error(`[Merge] GitHub API merge failed: ${errText}`);
         return res.status(mergeRes.status).json({ error: `GitHub API error: ${errText}` });
       }
 
       const mergeData = await mergeRes.json();
+      console.log(`[Merge] GitHub API merge success message: ${mergeData.message}`);
       
       // Update PR status in DB
       await db.query(
