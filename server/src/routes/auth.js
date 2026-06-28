@@ -133,10 +133,14 @@ router.get('/github/callback', async (req, res) => {
     `, [user.id, sessionToken, expiresAt]);
 
     // Step 6 — Set session cookie
+    const isCrossSite = process.env.FRONTEND_URL && 
+                        !process.env.FRONTEND_URL.includes('localhost') && 
+                        !process.env.FRONTEND_URL.includes('127.0.0.1');
+
     res.cookie('session', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isCrossSite ? true : (process.env.NODE_ENV === 'production'),
+      sameSite: isCrossSite ? 'none' : 'lax',
       expires: expiresAt
     });
 
